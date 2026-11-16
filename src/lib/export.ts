@@ -57,12 +57,15 @@ export function toCsv(entries: Entry[], home: string, people: People): string {
 }
 
 /** Full-fidelity JSON export (amounts in minor units plus readable values), usable as a backup. */
-export function toJson(entries: Entry[], home: string, people: People) {
+export function toJson(entries: Entry[], home: string, people: People, settings?: { enabledCurrencies?: string[] }) {
   const summary = summarize(entries, home);
   return {
+    app: "travel-ledger",
+    version: 1,
     exportedAt: new Date().toISOString(),
     homeCurrency: home,
     people,
+    settings: settings ?? {},
     summary: {
       balance: plainAmount(summary.balance, home),
       balanceMeaning: `positive = ${people.p2} owes ${people.p1}`,

@@ -1,0 +1,198 @@
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import type { People } from "@/lib/config";
+import { slotColor } from "@/lib/currencyData";
+import { type PersonKey, other } from "@/lib/ledger";
+import { formatMoney, formatRate } from "@/lib/money";
+import type { HistoryItem } from "@/lib/stats";
+import { Flag } from "./Flag";
+
+type KindFilter = "all" | "expense" | "payment";
+
+const dayHeading = (d: string) =>
+  new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+
+export function History({ items, people, home }: { items: HistoryItem[]; people: People; home: string }) {
+  const [query, setQuery] = useState("");
+  const [person, setPerson] = useState<PersonKey | "all">("all");
+  const [currency, setCurrency] = useState<string>("all");
+  const [kind, setKind] = useState<KindFilter>("all");
+  const name = (p: PersonKey) => people[p];
+
+  const countries = useMemo(() => {
+    const seen = new Map<string, HistoryItem>();
+    for (const i of [...items].reverse()) if (!seen.has(i.currency)) seen.set(i.currency, i);
+    return [...seen.values()].sort((a, b) => (a.slot || 99) - (b.slot || 99));
+  }, [items]);
+
+  const q = query.trim().toLowerCase();
+  const shown = items.filter(
+    (i) =>
+      (person === "all" || i.paidBy === person) &&
+      (currency === "all" || i.currency === currency) &&
+      (kind === "all" || i.kind === kind) &&
+      (!q || `${i.description} ${i.notes} ${i.country} ${i.currency}`.toLowerCase().includes(q)),
+  );
+  const shownSpent = shown.filter((i) => i.kind === "expense").reduce((a, i) => a + i.home, 0);
+  const filtering = q || person !== "all" || currency !== "all" || kind !== "all";
+
+  const days = new Map<string, HistoryItem[]>();
+  for (const i of shown) days.set(i.date, [...(days.get(i.date) ?? []), i]);
+
+  if (items.length === 0) {
+    return <p className="card text-sm text-muted">Nothing yet. Add your first expense above and it will show up here.</p>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="card space-y-3 !p-3">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search descriptions, notes, countries…"
+          aria-label="Search history"
+          className="input"
+        />
+        <div className="flex flex-wrap gap-1.5">
+          <FilterChip on={person === "all" && kind === "all"} onClick={() => { setPerson("all"); setKind("all"); }}>
+            Everyone
+          </FilterChip>
+          {(["p1", "p2"] as const).map((p) => (
+            <FilterChip key={p} on={person === p} onClick={() => setPerson(person === p ? "all" : p)}>
+              <span className="h-2 w-2 rounded-full" style={{ background: `var(--${p})` }} />
+              Paid by {name(p)}
+            </FilterChip>
+          ))}
+          <FilterChip on={kind === "payment"} onClick={() => setKind(kind === "payment" ? "all" : "payment")}>
+            💸 Payments
+          </FilterChip>
+        </div>
+        {countries.length > 1 && (
+          <div className="flex flex-wrap gap-1.5">
+            <FilterChip on={currency === "all"} onClick={() => setCurrency("all")}>
+              All countries
+            </FilterChip>
+            {countries.map((c) => (
+              <FilterChip key={c.currency} on={currency === c.currency} onClick={() => setCurrency(currency === c.currency ? "all" : c.currency)}>
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: slotColor(c.slot) }} />
+                <Flag currency={c.currency} />
+                {c.country}
+              </FilterChip>
+            ))}
+          </div>
+        )}
+        {filtering && (
+          <p className="text-xs text-muted">
+            {shown.length} of {items.length} entries · {formatMoney(shownSpent, home)} spent
+          </p>
+        )}
+      </div>
+
+      {shown.length === 0 && <p className="card text-sm text-muted">No entries match these filters.</p>}
+
+      {[...days.entries()].map(([date, list]) => {
+        const dayTotal = list.filter((i) => i.kind === "expense").reduce((a, i) => a + i.home, 0);
+        return (
+          <section key={date} aria-label={dayHeading(date)}>
+            <div className="mb-1.5 flex items-baseline justify-between px-1">
+              <h3 className="text-sm font-bold">{dayHeading(date)}</h3>
+              {dayTotal > 0 && <span className="text-xs font-medium tabular-nums text-muted">{formatMoney(dayTotal, home)} spent</span>}
+            </div>
+            <ul className="space-y-2">
+              {list.map((i) => (
+                <HistoryCard key={i.id} item={i} people={people} home={home} />
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function HistoryCard({ item: i, people, home }: { item: HistoryItem; people: People; home: string }) {
+  const foreign = i.currency !== home;
+  const isPayment = i.kind === "payment";
+  const color = slotColor(i.slot);
+  const effect = isPayment
+    ? `${people[i.paidBy]} gave ${people[other(i.paidBy)]} ${formatMoney(i.home, home)}`
+    : i.delta === 0
+      ? "No one owes anything"
+      : `${people[i.delta > 0 ? "p2" : "p1"]} owes ${people[i.delta > 0 ? "p1" : "p2"]} ${formatMoney(Math.abs(i.delta), home)}`;
+  const splitText = isPayment
+    ? "Payment"
+    : { equal: "Split 50/50", custom: "Custom split", payer: "Not split", other: `All for ${people[other(i.paidBy)]}` }[i.split];
+  const rateText = !foreign
+    ? null
+    : i.rateSource === "charged"
+      ? "Charged amount from statement"
+      : `1 ${i.currency} = ${formatRate(i.rate)} ${home} · ${i.rateSource === "ecb" ? `ECB ${i.rateDate ?? ""}` : "manual rate"}`;
+  const balance =
+    i.balanceAfter === 0
+      ? "All square after this"
+      : `After this: ${people[i.balanceAfter > 0 ? "p2" : "p1"]} owes ${formatMoney(Math.abs(i.balanceAfter), home)}`;
+
+  return (
+    <li id={`entry-${i.id}`}>
+      <Link
+        href={`/entries/${i.id}`}
+        className="group relative flex gap-3 overflow-hidden rounded-2xl border border-line bg-card p-3 pl-4 shadow-sm transition hover:-translate-y-px hover:shadow-md"
+      >
+        <span aria-hidden className="absolute inset-y-0 left-0 w-1.5" style={{ background: color }} />
+        <span
+          aria-hidden
+          className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg"
+          style={{ background: `color-mix(in oklab, ${color} 16%, transparent)` }}
+        >
+          {isPayment ? "💸" : <Flag currency={i.currency} />}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold">{i.description}</p>
+          <div className="mt-1 flex flex-wrap gap-1">
+            <span className="chip border border-line">
+              <span className="h-2 w-2 rounded-full" style={{ background: `var(--${i.paidBy})` }} />
+              {isPayment ? `From ${people[i.paidBy]}` : `Paid by ${people[i.paidBy]}`}
+            </span>
+            <span className="chip bg-subtle">{splitText}</span>
+            <span className="chip" style={{ background: `color-mix(in oklab, ${color} 14%, transparent)` }}>
+              <Flag currency={i.currency} /> {i.country}
+            </span>
+            {i.updated && <span className="chip bg-subtle text-muted">edited</span>}
+          </div>
+          {rateText && <p className="mt-1 text-xs text-muted">{rateText}</p>}
+          {i.notes && <p className="mt-1 text-xs italic text-muted">“{i.notes}”</p>}
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-base font-bold tabular-nums">{formatMoney(i.amountMinor, i.currency)}</p>
+          {foreign && <p className="text-xs tabular-nums text-muted">≈ {formatMoney(i.home, home)}</p>}
+          <p className="mt-1 text-xs font-medium">{effect}</p>
+          <p className="text-[11px] text-muted">{balance}</p>
+        </div>
+      </Link>
+    </li>
+  );
+}
+
+function FilterChip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition ${
+        on ? "border-accent bg-accent text-white" : "border-line bg-card hover:border-accent/50"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}

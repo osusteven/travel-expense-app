@@ -1,24 +1,65 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f8f8;
-  --foreground: #16201f;
+  color-scheme: light;
+  --background: #f6f5fb;
+  --foreground: #1b1838;
   --card: #ffffff;
-  --subtle: #eef2f1;
-  --line: #d6dedc;
-  --muted: #5b6b68;
-  --accent: #0f766e;
+  --subtle: #f1effa;
+  --line: #e2def3;
+  --muted: #6b6788;
+  --accent: #5b47e0;
+  --accent-2: #db2777;
+  --accent-3: #f97316;
+  --p1: #4f6fe8;
+  --p2: #d9468f;
+  --good: #15803d;
+  --bad: #c2410c;
+  --hero-from: #5b47e0;
+  --hero-via: #9b3fd1;
+  --hero-to: #e0457b;
+
+  /* Validated categorical palette (colorblind-safe in this order). Used for countries. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #6250d6;
+  --series-8: #e34948;
+  --series-other: #9a97ad;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0f1514;
-    --foreground: #e6eeec;
-    --card: #172120;
-    --subtle: #1e2a29;
-    --line: #2d3b39;
-    --muted: #93a5a1;
-    --accent: #2bb3a5;
+    color-scheme: dark;
+    --background: #120f24;
+    --foreground: #ece9fb;
+    --card: #1c1834;
+    --subtle: #262143;
+    --line: #342e57;
+    --muted: #a59fc9;
+    --accent: #8b7cf6;
+    --accent-2: #f472b6;
+    --accent-3: #fb923c;
+    --p1: #7d96ff;
+    --p2: #f07ab3;
+    --good: #4ade80;
+    --bad: #fb923c;
+    --hero-from: #4733c4;
+    --hero-via: #7e2fb3;
+    --hero-to: #b8325f;
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #0ca30c;
+    --series-7: #9085e9;
+    --series-8: #e66767;
+    --series-other: #6f6a8f;
   }
 }
 
@@ -30,28 +71,53 @@
   --color-line: var(--line);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-accent-3: var(--accent-3);
+  --color-p1: var(--p1);
+  --color-p2: var(--p2);
+  --color-good: var(--good);
+  --color-bad: var(--bad);
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(60rem 30rem at 100% -10%, color-mix(in oklab, var(--accent-2) 14%, transparent), transparent),
+    radial-gradient(50rem 30rem at -10% 0%, color-mix(in oklab, var(--accent) 16%, transparent), transparent),
+    var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
 }
 
 @layer components {
   .card {
-    @apply rounded-xl border border-line bg-card p-4 sm:p-5;
+    @apply rounded-2xl border border-line bg-card p-4 shadow-[0_1px_2px_rgb(30_20_80/0.05),0_8px_24px_-12px_rgb(30_20_80/0.18)] sm:p-5;
   }
   .label {
     @apply text-sm font-medium text-muted;
   }
   .input {
-    @apply block w-full rounded-md border border-line bg-card px-3 py-2 text-base outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 sm:text-sm;
+    @apply block w-full rounded-lg border border-line bg-card px-3 py-2 text-base outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/20 sm:text-sm;
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-accent to-accent-2 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-accent/25 transition hover:brightness-110 disabled:opacity-60;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-md border border-line bg-card px-3 py-2 text-sm font-medium hover:bg-subtle;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-card px-3 py-2 text-sm font-medium transition hover:border-accent/50 hover:bg-subtle;
   }
+  .hero {
+    background: linear-gradient(120deg, var(--hero-from), var(--hero-via) 55%, var(--hero-to));
+  }
+  .section-title {
+    @apply flex items-center gap-2 text-lg font-bold tracking-tight;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+}
+
+/* flag-icons: round the corners a little */
+.fi {
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.08);
 }

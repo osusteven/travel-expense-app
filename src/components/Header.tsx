@@ -1,21 +1,26 @@
 import Link from "next/link";
 import { logout } from "@/app/login/actions";
 
-export function Header() {
+export function Header({ active }: { active?: "home" | "settings" }) {
+  const link = (href: string, label: string, on: boolean) => (
+    <Link
+      href={href}
+      className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${on ? "bg-white/25" : "hover:bg-white/15"}`}
+    >
+      {label}
+    </Link>
+  );
   return (
-    <header className="border-b border-line bg-card">
-      <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 py-3">
-        <Link href="/" className="mr-auto text-lg font-semibold">
+    <header className="hero text-white shadow-lg shadow-accent/20">
+      <div className="mx-auto flex max-w-3xl items-center gap-1 px-4 py-3">
+        <Link href="/" className="mr-auto flex items-center gap-2 text-lg font-extrabold tracking-tight">
+          <span aria-hidden className="grid h-8 w-8 place-items-center rounded-xl bg-white/20 text-base">✈︎</span>
           Travel Ledger
         </Link>
-        <a href="/api/export?format=csv" className="btn-secondary">
-          Export CSV
-        </a>
-        <a href="/api/export?format=json" className="btn-secondary hidden sm:inline-flex">
-          JSON
-        </a>
+        {link("/", "Ledger", active === "home")}
+        {link("/settings", "Settings", active === "settings")}
         <form action={logout}>
-          <button type="submit" className="px-2 py-2 text-sm text-muted hover:text-foreground">
+          <button type="submit" className="rounded-lg px-3 py-1.5 text-sm font-medium text-white/80 hover:bg-white/15 hover:text-white">
             Lock
           </button>
         </form>

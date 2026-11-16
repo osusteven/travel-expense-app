@@ -70,6 +70,22 @@ const schema = `
     fetched_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (base, quote, date)
   );
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  -- One row per backup attempt (scheduled or manual), successful or not.
+  CREATE TABLE IF NOT EXISTS backup_runs (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    trigger TEXT NOT NULL,
+    ok BOOLEAN NOT NULL,
+    pathname TEXT,
+    entries INTEGER,
+    bytes INTEGER,
+    error TEXT
+  );
 `;
 
 /** Creates the tables on first use. The advisory lock stops two cold starts from racing. */
@@ -185,7 +201,7 @@ export async function deleteEntry(id: string): Promise<void> {
 }
 
 export interface LogItem {
-  action: "create" | "update" | "delete";
+  action: "create" | "update" | "delete" | "import";
   at: string;
   snapshot: Entry;
 }
@@ -232,4 +248,93 @@ export async function storeRate(base: string, quote: string, date: string, rate:
 
 function isUuid(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}
+
+// ---- Settings ----
+
+export async function getSetting<T>(key: string): Promise<T | null> {
+  const res = await (await db()).query("SELECT value FROM settings WHERE key = $1", [key]);
+  return res.rows[0] ? (res.rows[0].value as T) : null;
+}
+
+export async function setSetting(key: string, value: unknown): Promise<void> {
+  await (await db()).query(
+    `INSERT INTO settings (key, value) VALUES ($1, $2)
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
+    [key, JSON.stringify(value)],
+  );
+}
+
+// ---- Import ----
+
+/**
+ * Writes imported entries in one transaction. "merge" adds new entries and overwrites ones with the same id;
+ * "replace" first deletes everything (each deletion is logged, so it shows under Deleted entries).
+ */
+export async function importEntries(entries: Entry[], mode: "merge" | "replace"): Promise<{ added: number; updated: number; removed: number }> {
+  return inTransaction(async (c) => {
+    let removed = 0;
+    if (mode === "replace") {
+      const res = await c.query("DELETE FROM entries RETURNING *");
+      removed = res.rowCount ?? 0;
+      for (const r of res.rows) {
+        await c.query("INSERT INTO entry_log (entry_id, action, snapshot) VALUES ($1, 'delete', $2)", [
+          r.id, JSON.stringify(toEntry(r)),
+        ]);
+      }
+    }
+    let added = 0;
+    let updated = 0;
+    for (const e of entries) {
+      const exists = await c.query("SELECT 1 FROM entries WHERE id = $1", [e.id]);
+      await c.query(upsertSql, [
+        e.id, e.kind, e.date, e.description, e.amountMinor, e.currency, e.rate, e.rateSource, e.rateDate,
+        e.homeAmountMinor, e.paidBy, e.split, e.p1ShareMinor, e.notes, e.createdAt, e.updatedAt,
+      ]);
+      await c.query("INSERT INTO entry_log (entry_id, action, snapshot) VALUES ($1, 'import', $2)", [
+        e.id, JSON.stringify(e),
+      ]);
+      if (exists.rowCount) updated++;
+      else added++;
+    }
+    return { added, updated, removed };
+  });
+}
+
+// ---- Backup runs ----
+
+export interface BackupRun {
+  at: string;
+  trigger: string;
+  ok: boolean;
+  pathname: string | null;
+  entries: number | null;
+  bytes: number | null;
+  error: string | null;
+}
+
+export async function recordBackupRun(run: Omit<BackupRun, "at">): Promise<void> {
+  await (await db()).query(
+    "INSERT INTO backup_runs (trigger, ok, pathname, entries, bytes, error) VALUES ($1, $2, $3, $4, $5, $6)",
+    [run.trigger, run.ok, run.pathname, run.entries, run.bytes, run.error],
+  );
+}
+
+export async function recentBackupRuns(limit = 10): Promise<BackupRun[]> {
+  const res = await (await db()).query("SELECT * FROM backup_runs ORDER BY id DESC LIMIT $1", [limit]);
+  return res.rows.map((r) => ({
+    at: iso(r.at),
+    trigger: String(r.trigger),
+    ok: Boolean(r.ok),
+    pathname: r.pathname == null ? null : String(r.pathname),
+    entries: r.entries == null ? null : Number(r.entries),
+    bytes: r.bytes == null ? null : Number(r.bytes),
+    error: r.error == null ? null : String(r.error),
+  }));
+}
+
+/** True if a backup already succeeded since the given time. */
+export async function backupSucceededSince(since: Date): Promise<boolean> {
+  const res = await (await db()).query("SELECT 1 FROM backup_runs WHERE ok AND at >= $1 LIMIT 1", [since]);
+  return (res.rowCount ?? 0) > 0;
 }

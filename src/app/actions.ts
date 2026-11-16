@@ -1,11 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { config } from "@/lib/config";
 import { deleteEntry, getEntry, listEntries, saveEntry } from "@/lib/db";
 import { type Entry, settlement, summarize } from "@/lib/ledger";
 import { requireAuth } from "@/lib/session";
+import { LAST_CURRENCY_COOKIE } from "@/lib/settings";
 import { type FieldErrors, parseEntryForm } from "@/lib/validate";
 
 export type SaveState = { errors: FieldErrors; message?: string };
@@ -34,6 +36,14 @@ export async function saveEntryAction(_prev: SaveState, form: FormData): Promise
     await saveEntry({ ...existing, ...parsed.value, updatedAt: now }, "update");
   } else {
     await saveEntry({ ...parsed.value, id: crypto.randomUUID(), createdAt: now, updatedAt: now }, "create");
+    // Remember this device's currency so the next entry starts with it.
+    (await cookies()).set(LAST_CURRENCY_COOKIE, parsed.value.currency, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    });
   }
   revalidatePath("/");
   redirect(id ? `/#entry-${id}` : "/?saved=1");

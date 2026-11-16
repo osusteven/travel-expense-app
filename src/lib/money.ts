@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { isKnownCurrency } from "./currencyData";
 
 /*
  * Money rules used throughout the app:
@@ -27,14 +28,9 @@ export function currencyExponent(code: string): number {
   return digits;
 }
 
+/** Only active ISO 4217 currencies are accepted (Intl alone would accept any three letters). */
 export function isValidCurrency(code: string): boolean {
-  if (!/^[A-Z]{3}$/.test(code)) return false;
-  try {
-    new Intl.NumberFormat("en", { style: "currency", currency: code });
-    return true;
-  } catch {
-    return false;
-  }
+  return isKnownCurrency(code);
 }
 
 /**

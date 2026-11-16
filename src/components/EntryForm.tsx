@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { saveEntryAction, type SaveState } from "@/app/actions";
 import type { People } from "@/lib/config";
+import { CurrencyPicker, type CurrencyOption } from "./CurrencyPicker";
 import { type Entry, type EntryKind, type PersonKey, type SplitMode, entryEffect, other } from "@/lib/ledger";
 import { formatMoney, formatRate, parseDecimal, plainAmount, toMinor } from "@/lib/money";
 
@@ -31,8 +32,8 @@ export function EntryForm({
 }: {
   people: People;
   homeCurrency: string;
-  /** Currency codes for the dropdown, most useful first. */
-  currencies: string[];
+  /** Currencies for the dropdown (the enabled ones from Settings), most useful first. */
+  currencies: CurrencyOption[];
   defaultCurrency: string;
   /** Present when editing. */
   entry?: Entry;
@@ -166,7 +167,7 @@ export function EntryForm({
         </Field>
       </div>
 
-      <div className="grid grid-cols-[1fr_8rem] gap-4">
+      <div className="grid grid-cols-[1fr_minmax(9rem,13rem)] gap-4">
         <Field label="Amount" error={e.amount}>
           <input
             name="amount"
@@ -179,21 +180,15 @@ export function EntryForm({
           />
         </Field>
         <Field label="Currency" error={e.currency}>
-          <select
+          <CurrencyPicker
             name="currency"
             value={currency}
-            onChange={(ev) => {
+            options={currencies}
+            onChange={(code) => {
               rateTyped.current = false;
-              setCurrency(ev.target.value);
+              setCurrency(code);
             }}
-            className="input"
-          >
-            {currencies.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          />
         </Field>
       </div>
 

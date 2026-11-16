@@ -5,7 +5,8 @@ import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { EntryForm } from "@/components/EntryForm";
 import { Header } from "@/components/Header";
 import { config, people } from "@/lib/config";
-import { currencyOptions } from "@/lib/currencies";
+import { toOptions } from "@/lib/currencyOptions";
+import { enabledCurrencies } from "@/lib/settings";
 import { entryHistory, getEntry } from "@/lib/db";
 import type { Entry } from "@/lib/ledger";
 import { formatMoney, formatRate } from "@/lib/money";
@@ -14,13 +15,13 @@ import { requireAuth } from "@/lib/session";
 export default async function EditEntryPage({ params }: PageProps<"/entries/[id]">) {
   await requireAuth();
   const { id } = await params;
-  const [entry, history] = await Promise.all([getEntry(id), entryHistory(id)]);
+  const [entry, history, enabled] = await Promise.all([getEntry(id), entryHistory(id), enabledCurrencies()]);
   if (!entry) notFound();
   const home = config.homeCurrency;
 
   return (
     <>
-      <Header />
+      <Header active="home" />
       <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6">
         <Link href="/" className="text-sm text-accent">
           ← Back
@@ -30,7 +31,8 @@ export default async function EditEntryPage({ params }: PageProps<"/entries/[id]
           <EntryForm
             people={people}
             homeCurrency={home}
-            currencies={currencyOptions(home, [entry.currency])}
+            // Keep the entry's own currency available even if it's been unchecked in Settings.
+            currencies={toOptions([...new Set([entry.currency, ...enabled])])}
             defaultCurrency={entry.currency}
             entry={entry}
           />
@@ -41,7 +43,7 @@ export default async function EditEntryPage({ params }: PageProps<"/entries/[id]
           <ol className="space-y-1.5">
             {history.map((h, i) => (
               <li key={i}>
-                <span className="font-medium">{h.action === "create" ? "Created" : "Edited"}</span>{" "}
+                <span className="font-medium">{{ create: "Created", update: "Edited", import: "Imported", delete: "Deleted" }[h.action]}</span>{" "}
                 <span className="text-muted">{new Date(h.at).toLocaleString("en-US")}</span>
                 <span className="block text-xs text-muted">{describe(h.snapshot)}</span>
               </li>

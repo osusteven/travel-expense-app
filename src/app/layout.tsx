@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import "flag-icons/css/flag-icons.min.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f766e",
+  themeColor: "#5b47e0",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -11,7 +11,7 @@ function entry(p: Partial<Entry>): Entry {
   return {
     id: `e${n}`, kind: "expense", date: "2026-10-01", description: "x", amountMinor: 10000, currency: "USD",
     rate: "1", rateSource: "same", rateDate: "2026-10-01", homeAmountMinor: null, paidBy: "p1", split: "equal",
-    p1ShareMinor: null, notes: "", createdAt: `2026-10-01T00:00:${String(n).padStart(2, "0")}Z`, updatedAt: "", ...p,
+    p1ShareMinor: null, notes: "", createdAt: `2026-10-01T00:00:${String(n).padStart(2, "0")}Z`, updatedAt: "2026-10-01T00:00:00Z", ...p,
   };
 }
 
@@ -117,5 +117,64 @@ describe("csv export", () => {
     expect(csv.startsWith("﻿date,type")).toBe(true);
     expect(csv).toContain(`"'=HYPERLINK(""x""), ""quoted"""`);
     expect(csv).toContain(",50.00,");
+  });
+});
+
+import { computeStats, historyItems } from "../stats";
+import { countrySlots } from "../currencyData";
+
+describe("statistics", () => {
+  const entries = [
+    entry({ date: "2026-10-01", amountMinor: 10000, currency: "USD" }),
+    entry({ date: "2026-10-03", amountMinor: 20000, currency: "JPY", rate: "0.01", paidBy: "p2" }),
+    entry({ date: "2026-10-03", amountMinor: 5000, currency: "USD", split: "payer" }),
+    entry({ kind: "payment", date: "2026-10-04", amountMinor: 1000, currency: "USD", split: "other", paidBy: "p2" }),
+  ];
+  it("totals by country, days and per-day average", () => {
+    const s = computeStats(entries, "USD");
+    expect(s.totalSpent).toBe(35000);
+    expect(s.days).toBe(3);
+    expect(s.perDay).toBe(11667);
+    expect(s.byCountry.map((c) => [c.currency, c.home])).toEqual([["JPY", 20000], ["USD", 15000]]);
+    expect(s.periods.map((p) => p.total)).toEqual([10000, 0, 25000]);
+    expect(s.largest?.home).toBe(20000);
+    expect(s.payments).toEqual({ count: 1, total: 1000 });
+  });
+  it("assigns country colors in order of first use and never reuses them", () => {
+    const codes = ["USD", "JPY", "USD", "EUR", "KRW", "THB", "VND", "GBP", "MXN", "CAD"];
+    const slots = countrySlots(codes);
+    expect(slots).toMatchObject({ USD: 1, JPY: 2, EUR: 3, MXN: 8, CAD: 0 });
+  });
+  it("history carries running balance and country", () => {
+    const h = historyItems(entries, "USD");
+    const jpy = h.find((i) => i.currency === "JPY")!;
+    expect(jpy.country).toBe("Japan");
+    expect(jpy.slot).toBe(2);
+    expect(h.find((i) => i.kind === "payment")!.balanceAfter).toBe(5000 - 10000 + 1000 * -1 + 0);
+  });
+});
+
+import { parseImport } from "../importData";
+import { toJson as exportJson } from "../export";
+
+describe("import", () => {
+  const people = { p1: "Steven", p2: "Alex" };
+  const original = [
+    entry({ id: "0b1e7d7c-8f4e-4a59-9a39-5f6d1f0c2a11", currency: "JPY", amountMinor: 3400, rate: "0.0067", rateSource: "ecb", notes: "ramen" }),
+    entry({ id: "4f7a2a3e-1b2c-4d5e-8f90-123456789abc", kind: "payment", split: "other", paidBy: "p2", createdAt: "2026-10-02T00:00:00Z", updatedAt: "2026-10-02T00:00:00Z" }),
+  ];
+  it("round-trips a JSON export exactly", () => {
+    const text = JSON.stringify(exportJson(original, "USD", people, { enabledCurrencies: ["USD", "JPY"] }));
+    const parsed = parseImport(text, "USD");
+    expect(parsed.entries).toEqual(original);
+    expect(parsed.enabledCurrencies).toEqual(["USD", "JPY"]);
+  });
+  it("rejects a different home currency, bad JSON, and invalid entries", () => {
+    const text = JSON.stringify(exportJson(original, "USD", people));
+    expect(() => parseImport(text, "EUR")).toThrow(/home currency/);
+    expect(() => parseImport("date,amount\n1,2", "USD")).toThrow(/valid JSON/);
+    const bad = JSON.parse(text);
+    bad.entries[0].amountMinor = -5;
+    expect(() => parseImport(JSON.stringify(bad), "USD")).toThrow(/Entry 1 is invalid/);
   });
 });

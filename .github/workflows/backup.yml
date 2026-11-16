@@ -1,0 +1,33 @@
+name: Hourly backup check
+
+# Calls the app's backup endpoint every hour. The app only makes one backup per day,
+# so this does nothing once today's backup has succeeded, and retries every hour if it failed.
+#
+# Setup (repository Settings → Secrets and variables → Actions):
+#   - Secret   CRON_SECRET: the same value as CRON_SECRET in Vercel
+#   - Variable APP_URL:     e.g. https://travel-expense-app-rho.vercel.app
+# Scheduled workflows only run from the repository's default branch.
+
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run backup if today's hasn't succeeded
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
+            echo "::notice::CRON_SECRET secret or APP_URL variable not set; skipping."
+            exit 0
+          fi
+          curl -sS --fail-with-body --retry 2 --retry-delay 20 --max-time 90 \
+            -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/backup"

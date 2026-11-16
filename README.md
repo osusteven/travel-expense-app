@@ -3,9 +3,11 @@
 A small Next.js app for two people (Steven and a travel partner) to record shared expenses in any currency
 and see who owes whom.
 
-| Desktop | Phone | Edit + history |
-|---|---|---|
-| ![Dashboard](docs/screenshots/2_dashboard.png) | ![Mobile](docs/screenshots/4_mobile.png) | ![Edit](docs/screenshots/3_edit.png) |
+| Ledger | History | Statistics | Settings |
+|---|---|---|---|
+| ![Ledger](docs/screenshots/2_dashboard.png) | ![History](docs/screenshots/3_history.png) | ![Statistics](docs/screenshots/4_statistics.png) | ![Settings](docs/screenshots/5_settings.png) |
+
+Also: [phone](docs/screenshots/7_mobile.png) · [dark mode](docs/screenshots/8_dark.png) · [edit + change history](docs/screenshots/6_edit.png)
 
 ## What it does
 
@@ -20,7 +22,17 @@ and see who owes whom.
   payment that brings it to zero.
 - **Editable.** Click any entry to change or delete it. Every create, edit and delete is kept in a change log, shown
   on the entry's page, and deleted entries stay listed, so you can see what changed when you reconcile.
-- **Export.** **Export CSV** opens in Excel, Numbers or Google Sheets. It has one row per entry with the original
+- **History.** Every entry, grouped by day with daily totals, color-coded by country (flag, country name and a color
+  bar). Each entry shows who paid, the split, the exchange rate used, notes, what it means for the balance, and the
+  running balance after it. Filter by person, country or payments, or search descriptions and notes.
+- **Statistics.** Total spent, average per day, the biggest expense, spending by country, spending per day (stacked
+  by country, with hover details and a table view), and what each person paid compared with their share.
+- **Settings.** Choose which currencies appear in the form. Each currency is shown with its country and flag. The
+  form remembers the last currency used on each device.
+- **Import.** Load a JSON export or backup, either merging it in or replacing everything. A safety backup is taken
+  first.
+- **Automatic backups.** See [Backups](#backups) below.
+- **Export.** **CSV** opens in Excel, Numbers or Google Sheets. It has one row per entry with the original
   amount, the rate used, the converted amount, each person's share and the running balance. **JSON** is a complete
   backup.
 - **Password gate.** See [the password](#the-password) below.
@@ -79,6 +91,31 @@ travel ledger, but use something less guessable than a name if the URL will be s
 
 Neon backs the database up for you. The JSON export also works as your own backup.
 
+## Backups
+
+Once a day the app saves a full JSON backup, privately, to **Vercel Blob** storage. That storage is separate from
+the database, so a database problem can't take the backups with it. If a backup fails, it's retried every hour until
+one succeeds. The last 60 are kept. **Settings** shows when the last backup succeeded and lists the stored backups,
+each with **Download** and **Restore** buttons.
+
+One-time setup:
+
+1. **Storage.** In the Vercel project, open **Storage → Create → Blob**, choose **Private** access, and connect it to
+   the project. This sets `BLOB_READ_WRITE_TOKEN`.
+2. **Secret.** Under **Environment Variables**, add `CRON_SECRET` set to any long random text (for example from a
+   password generator). It stops anyone else from triggering backups.
+3. **Daily run.** Redeploy. Vercel then calls the backup once a day (`vercel.json`).
+4. **Hourly retry** (GitHub Actions, free). In the GitHub repository open **Settings → Secrets and variables →
+   Actions**:
+   - Add a **secret** `CRON_SECRET` with the same value as in Vercel.
+   - Add a **variable** `APP_URL` = `https://travel-expense-app-rho.vercel.app`.
+
+   GitHub only runs scheduled jobs from the repository's **default branch**, so merge this branch into `main` for the
+   hourly retry to start. Until then, the Vercel daily run still makes the backup.
+
+To recover after a problem, use **Restore** on a backup, or download one and load it under **Settings → Import** with
+**Replace everything**.
+
 ## Running it locally
 
 ```bash
@@ -101,4 +138,6 @@ Other commands: `npm test` (unit tests for the money and balance logic), `npm ru
 | `PERSON_1_NAME` / `PERSON_2_NAME` | `Steven` / `Partner` | Names shown in the app |
 | `HOME_CURRENCY` | `USD` | Currency balances are settled in |
 | `DATABASE_URL` | set by Vercel | Postgres connection string (Neon) |
+| `BLOB_READ_WRITE_TOKEN` | set by Vercel | Backup storage (Vercel Blob, private) |
+| `CRON_SECRET` | | Protects the backup endpoint; same value as the GitHub secret |
 | `RATES_API_BASE` | `https://api.frankfurter.dev/v1` | Exchange-rate service (ECB data, no key needed) |
