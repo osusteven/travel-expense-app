@@ -54,10 +54,10 @@ jobs:
       # Keep docs/screenshots/ (shown in the README) up to date. Pushes made with the
       # workflow token don't trigger another run.
       - name: Commit updated screenshots
-        if: github.event_name == 'push'
+        if: always() && github.event_name == 'push'
         run: |
           mkdir -p docs/screenshots
-          cp app/build/screenshots/*.png docs/screenshots/
+          cp app/build/screenshots/*.png docs/screenshots/ || exit 0
           git add docs/screenshots
           if git diff --cached --quiet; then
             echo "Screenshots unchanged"

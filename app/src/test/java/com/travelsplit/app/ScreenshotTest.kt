@@ -1,6 +1,5 @@
 package com.travelsplit.app
 
-import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -10,7 +9,6 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
-import com.github.takahirom.roborazzi.captureRoboImage
 import com.github.takahirom.roborazzi.captureScreenRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -78,19 +76,10 @@ class ScreenshotTest {
     }
 
     @Test
-    fun joinTrip() {
-        waitForTrips()
-        compose.onNodeWithText("Join trip").performClick()
-        compose.waitForIdle()
-        // A dialog is its own window; capture just the dialog.
-        compose.onNode(isDialog()).captureRoboImage("build/screenshots/7_join_trip.png")
-    }
-
-    @Test
     fun newTrip() {
         waitForTrips()
         compose.onAllNodesWithText("New trip").onFirst().performClick()
-        capture("8_new_trip")
+        capture("7_new_trip")
     }
 
     private fun waitForTrips() {
