@@ -1,0 +1,121 @@
+import { describe, expect, it } from "vitest";
+import { type Entry, entryEffect, settlement, summarize } from "../ledger";
+import { convertMinor, currencyExponent, formatMoney, parseDecimal, toMinor } from "../money";
+import { parseEntryForm } from "../validate";
+import { toCsv } from "../export";
+import Decimal from "decimal.js";
+
+let n = 0;
+function entry(p: Partial<Entry>): Entry {
+  n++;
+  return {
+    id: `e${n}`, kind: "expense", date: "2026-10-01", description: "x", amountMinor: 10000, currency: "USD",
+    rate: "1", rateSource: "same", rateDate: "2026-10-01", homeAmountMinor: null, paidBy: "p1", split: "equal",
+    p1ShareMinor: null, notes: "", createdAt: `2026-10-01T00:00:${String(n).padStart(2, "0")}Z`, updatedAt: "", ...p,
+  };
+}
+
+describe("money", () => {
+  it("knows currency decimals", () => {
+    expect(currencyExponent("USD")).toBe(2);
+    expect(currencyExponent("JPY")).toBe(0);
+    expect(currencyExponent("KWD")).toBe(3);
+  });
+  it("parses the ways people type numbers", () => {
+    expect(parseDecimal("12.50")!.toFixed()).toBe("12.5");
+    expect(parseDecimal("12,50")!.toFixed()).toBe("12.5");
+    expect(parseDecimal("1,234")!.toFixed()).toBe("1234");
+    expect(parseDecimal("1,234.56")!.toFixed()).toBe("1234.56");
+    expect(parseDecimal("1.234,56")!.toFixed()).toBe("1234.56");
+    expect(parseDecimal("1 234,5")!.toFixed()).toBe("1234.5");
+    expect(parseDecimal("abc")).toBeNull();
+    expect(parseDecimal("")).toBeNull();
+  });
+  it("rejects more decimals than the currency has", () => {
+    expect(toMinor(new Decimal("12.5"), "JPY")).toBeNull();
+    expect(toMinor(new Decimal("1250"), "JPY")).toBe(1250);
+    expect(toMinor(new Decimal("12.34"), "USD")).toBe(1234);
+  });
+  it("converts without floating point error and rounds once", () => {
+    // ¥10,000 at 0.0067 = $67.00 exactly
+    expect(convertMinor(10000, "JPY", "USD", "0.0067")).toBe(6700);
+    // €0.10 × 3 separately would drift with floats; here 10 cents at 1.1 = 11 cents
+    expect(convertMinor(10, "EUR", "USD", "1.1")).toBe(11);
+    // half-up rounding: $1.005 → $1.01
+    expect(convertMinor(1005, "KWD", "USD", "1")).toBe(101);
+  });
+  it("formats", () => {
+    expect(formatMoney(123456, "USD")).toBe("$1,234.56");
+    expect(formatMoney(10000, "JPY")).toBe("¥10,000");
+  });
+});
+
+describe("ledger", () => {
+  it("equal split: the other person owes half", () => {
+    const s = summarize([entry({ amountMinor: 10000 })], "USD");
+    expect(s.balance).toBe(5000);
+    expect(settlement(s.balance)).toEqual({ from: "p2", to: "p1", amount: 5000 });
+  });
+  it("odd cent stays with the payer", () => {
+    const fx = entryEffect(entry({ amountMinor: 1001, paidBy: "p2" }), "USD");
+    expect(fx.share).toEqual({ p1: 500, p2: 501 });
+    expect(fx.balanceDelta).toBe(-500);
+  });
+  it("no split modes", () => {
+    expect(entryEffect(entry({ split: "payer" }), "USD").balanceDelta).toBe(0);
+    expect(entryEffect(entry({ split: "other", paidBy: "p2" }), "USD").balanceDelta).toBe(-10000);
+  });
+  it("custom split", () => {
+    const fx = entryEffect(entry({ split: "custom", p1ShareMinor: 7000 }), "USD");
+    expect(fx.share).toEqual({ p1: 7000, p2: 3000 });
+    expect(fx.balanceDelta).toBe(3000);
+  });
+  it("foreign currency uses the stored rate", () => {
+    const fx = entryEffect(entry({ amountMinor: 84000, currency: "JPY", rate: "0.0067", paidBy: "p2" }), "USD");
+    expect(fx.home).toBe(56280);
+    expect(fx.balanceDelta).toBe(-28140);
+  });
+  it("charged amount overrides the rate, custom split scales with it", () => {
+    const e = entry({ amountMinor: 12000, currency: "JPY", rate: "0.0068", homeAmountMinor: 8200, split: "custom", p1ShareMinor: 4000 });
+    const fx = entryEffect(e, "USD");
+    expect(fx.home).toBe(8200);
+    expect(fx.share.p1 + fx.share.p2).toBe(8200);
+    expect(fx.share.p1).toBe(2733);
+  });
+  it("payment settles and isn't counted as spending", () => {
+    const s = summarize([entry({ amountMinor: 10000 }), entry({ kind: "payment", amountMinor: 5000, paidBy: "p2", split: "other" })], "USD");
+    expect(s.balance).toBe(0);
+    expect(s.totalSpent).toBe(10000);
+  });
+});
+
+describe("form validation", () => {
+  const base = { kind: "expense", date: "2026-10-05", description: "Dinner", amount: "3400", currency: "JPY", paidBy: "p1", split: "equal", rate: "0.0067", rateSource: "ecb", rateDate: "2026-10-03" };
+  it("accepts a valid foreign expense", () => {
+    const r = parseEntryForm(base, "USD");
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value).toMatchObject({ amountMinor: 3400, rate: "0.0067", rateSource: "ecb", rateDate: "2026-10-03" });
+  });
+  it("computes the rate from the charged amount", () => {
+    const r = parseEntryForm({ ...base, rateMode: "charged", homeAmount: "23.10" }, "USD");
+    expect(r.ok && r.value.homeAmountMinor).toBe(2310);
+  });
+  it("reports errors per field", () => {
+    const r = parseEntryForm({ ...base, amount: "12.5", rate: "" }, "USD");
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(["amount", "rate"]);
+  });
+  it("custom share can't exceed the total", () => {
+    const r = parseEntryForm({ ...base, split: "custom", p1Share: "5000" }, "USD");
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe("csv export", () => {
+  it("escapes and guards against spreadsheet formulas", () => {
+    const csv = toCsv([entry({ description: '=HYPERLINK("x"), "quoted"' })], "USD", { p1: "Steven", p2: "Partner" });
+    expect(csv.startsWith("﻿date,type")).toBe(true);
+    expect(csv).toContain(`"'=HYPERLINK(""x""), ""quoted"""`);
+    expect(csv).toContain(",50.00,");
+  });
+});

@@ -1,77 +1,104 @@
-# TravelSplit
+# Travel Ledger
 
-An Android app for tracking shared travel expenses between two people, similar to Tricount.
+A small Next.js app for two people (Steven and a travel partner) to record shared expenses in any currency
+and see who owes whom.
 
-## Screenshots
-
-| Trips | Expenses | Balance | Expense (custom split) |
-|---|---|---|---|
-| ![Trips](docs/screenshots/1_trips.png) | ![Expenses](docs/screenshots/2_expenses.png) | ![Balance](docs/screenshots/3_balance.png) | ![Edit expense](docs/screenshots/4_edit_expense.png) |
-
-| New expense | Invite partner | New trip |
+| Desktop | Phone | Edit + history |
 |---|---|---|
-| ![New expense](docs/screenshots/5_new_expense.png) | ![Invite](docs/screenshots/6_invite_banner.png) | ![New trip](docs/screenshots/7_new_trip.png) |
+| ![Dashboard](docs/screenshots/2_dashboard.png) | ![Mobile](docs/screenshots/4_mobile.png) | ![Edit](docs/screenshots/3_edit.png) |
 
-These are generated from the real UI with sample data by `ScreenshotTest` (`./gradlew :app:recordRoborazziDebug`)
-and updated automatically by CI.
+## What it does
 
-## Features
+- **One form for everything.** Each entry has a description, date, amount and currency, who paid, and how it's split:
+  - 50/50
+  - custom amounts
+  - not split, the payer's own (tracked, but nobody owes anything)
+  - not split, all for the other person (they owe the full amount)
 
-- **Trips**: each trip has two people and a main currency that balances are shown in.
-- **Any currency**: record each expense in the currency you paid in. The exchange rate is filled in automatically:
-  the last rate you used for that currency on the trip, or otherwise the latest
-  [ECB reference rate](https://frankfurter.app) (about 30 major currencies). You can always edit it by hand,
-  so the app works offline. The rate is saved with each expense, so later rate changes don't alter past balances.
-- **Split options** for each expense:
-  - Split equally (50/50)
-  - Split by custom amounts
-  - No split: only for the payer (tracked in the totals, nobody owes anything)
-  - No split: only for the other person (they owe the full amount)
-- **Money given**: record cash handed over or a repayment between the two people.
-- **Balance**: who owes whom, total trip cost, what each person paid, each person's share, and spending per currency.
-  "Record settlement" adds the repayment that brings the balance to zero.
-- **Share**: send a plain-text summary of the trip and all its expenses.
-- **Sync between two phones**: invite your travel partner from the trip's menu. They tap **Join trip** and paste
-  the code, and from then on both phones see the same trip, updated live. The app also works offline: changes are
-  saved on the phone right away and sync when it's back online. No account or sign-up is needed: each install
-  signs in anonymously in the background.
+  There's also a **Payment / cash given** type for paying each other back.
+- **Running balance.** The top of the page shows who owes whom in your home currency. **Record settlement** adds the
+  payment that brings it to zero.
+- **Editable.** Click any entry to change or delete it. Every create, edit and delete is kept in a change log, shown
+  on the entry's page, and deleted entries stay listed, so you can see what changed when you reconcile.
+- **Export.** **Export CSV** opens in Excel, Numbers or Google Sheets. It has one row per entry with the original
+  amount, the rate used, the converted amount, each person's share and the running balance. **JSON** is a complete
+  backup.
+- **Password gate.** See [the password](#the-password) below.
 
-## Firebase setup (one-time, required for sync)
+## Handling multiple currencies
 
-Sync uses Google Firebase (Cloud Firestore). The free tier is far more than two people need.
+The app follows these practices, and they're also good rules if you ever reconcile by hand:
 
-1. Go to the [Firebase console](https://console.firebase.google.com) and create a project (Google Analytics isn't needed).
-2. **Add an Android app** to the project with package name `com.travelsplit.app`.
-   Download the `google-services.json` it gives you and put it in the `app/` folder.
-3. **Build → Authentication → Get started → Sign-in method**: enable **Anonymous**.
-4. **Build → Firestore Database → Create database** (any location, start in production mode).
-   Then open the **Rules** tab, replace the contents with [`firestore.rules`](firestore.rules) from this repo, and click **Publish**.
-5. Commit `app/google-services.json` so the GitHub Actions build produces a working APK.
-   This file isn't secret: it only identifies your Firebase project. Access to the data is controlled by the rules above.
+1. **Settle in one home currency.** Every balance is calculated in `HOME_CURRENCY` (USD by default). Pick it once and
+   don't change it after you've added entries.
+2. **Always record the original amount and currency** exactly as charged (¥84,000, not "$562.80"). The converted
+   value is derived from it, so nothing is lost and you can check it against receipts.
+3. **Freeze the rate at the time of the expense.** Each entry stores its own rate, the rate's source and the rate's
+   date. Converting old expenses at today's rate would shift the balance every day, so it's never done.
+4. **Use the rate from the transaction date.** The app looks up the European Central Bank reference rate for that
+   date. On weekends and holidays there's no ECB rate, so it uses the previous business day and says so. The ECB
+   covers about 30 major currencies. For others (e.g. VND) you type the rate in.
+5. **Best of all, use what you were actually charged.** Pick "I know the USD amount charged" and enter the amount from
+   your card or bank statement. That includes your bank's real rate and any foreign-transaction fees, so the split is
+   exactly what left your account. The app works out the effective rate and stores the exact charged amount.
+6. **Never use floating-point numbers for money.** Amounts are stored as whole cents (or whole yen, since some
+   currencies have 0 or 3 decimals). Rates are exact decimals, and each conversion rounds only once, at the end.
+   When a 50/50 split leaves an odd cent, it stays with the payer, so nobody is ever charged more than half.
+7. **Settle in one currency at the end.** Pay the balance in the home currency and record it as a payment or with
+   **Record settlement**.
 
-Without step 2, CI still builds the app with a placeholder config to check that the code compiles, but that APK can't sync.
+## The password
 
-### How sharing works
+You suggested a password field whose answer is "Steven". That's a sensible way to keep bots out, with a few changes:
 
-Each trip is a Firestore document with a random 20-character ID. That ID is the trip code. Anyone signed in who
-has the code can join the trip, and only members can read or change its expenses (see `firestore.rules`).
+- **Asked once per device, not on every entry.** The password unlocks the whole app, including viewing and
+  exporting, not just the form. A bot or a stranger who finds the URL shouldn't be able to read your expenses either.
+  After you enter it once, a secure cookie keeps that browser unlocked for 180 days. **Lock** signs that device out.
+- **Checked on the server, never in the page's code.** A check in the browser could be read or skipped by any bot.
+  Every page, form action and API call verifies the cookie.
+- **Not case-sensitive**, so "steven" from a phone keyboard works.
+- **Changeable without code.** Set `APP_PASSWORD` in your hosting settings. Changing it signs out every device.
+- **Extra bot defenses:** a hidden "honeypot" field that only bots fill in, a one-second delay after a wrong
+  password, and `noindex` plus `robots.txt` so search engines don't list the site.
 
-## Project structure
+This is a speed bump, not real security. Anyone who knows or guesses the password gets in. That's fine for a shared
+travel ledger, but use something less guessable than a name if the URL will be shared widely.
 
-| Module | What it contains |
-|---|---|
-| `core/` | Pure Kotlin: the split and balance math, money rounding and parsing. Unit tested, no Android dependency. |
-| `app/`  | The Android app: Jetpack Compose UI (Material 3), Firestore sync with offline cache, exchange-rate fetching. |
+## Running it locally
 
-Amounts are stored as exact decimals (`BigDecimal`) and rounded to each currency's own number of decimals
-(for example 0 for JPY), so there are no floating-point errors.
+```bash
+npm install
+cp .env.example .env.local   # then edit names, password and home currency
+npm run dev                  # http://localhost:3000
+```
 
-## Building
+Locally, data is stored in `data/ledger.db` (a SQLite file).
 
-Requirements: JDK 17+, the Android SDK (Android Studio installs it), and `app/google-services.json` (see Firebase setup).
+Other commands: `npm test` (unit tests for the money and balance logic), `npm run lint`, `npm run build`.
 
-- **Android Studio**: open the project folder and press Run.
-- **Command line**: `./gradlew :app:assembleDebug`. The APK is written to `app/build/outputs/apk/debug/`.
-- **Core tests only** (no Android SDK needed): `SKIP_ANDROID=1 ./gradlew :core:test`
+## Deploying (Vercel + Turso, both free for this size)
 
-Each push also builds the debug APK in GitHub Actions. You can download it from the run's **Artifacts** section.
+Vercel has no permanent disk, so production needs a hosted database. Turso is hosted SQLite and works with the
+same code.
+
+1. Create a database at [turso.tech](https://turso.tech), then copy its URL (`libsql://…`) and create an auth token.
+2. Import this repository in [Vercel](https://vercel.com/new).
+3. In the project's environment variables, set:
+   - `DATABASE_URL` and `DATABASE_AUTH_TOKEN` (from Turso)
+   - `APP_PASSWORD`
+   - `PERSON_1_NAME` and `PERSON_2_NAME`
+   - `HOME_CURRENCY`
+4. Deploy. Tables are created automatically on first use.
+
+It runs on any Node.js host too. On a server with a disk you can keep the default `file:` database and skip Turso.
+
+## Settings
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `APP_PASSWORD` | `Steven` | Shared password (case-insensitive) |
+| `PERSON_1_NAME` / `PERSON_2_NAME` | `Steven` / `Partner` | Names shown in the app |
+| `HOME_CURRENCY` | `USD` | Currency balances are settled in |
+| `DATABASE_URL` | `file:data/ledger.db` | libSQL/SQLite database |
+| `DATABASE_AUTH_TOKEN` | | Token for a hosted database |
+| `RATES_API_BASE` | `https://api.frankfurter.dev/v1` | Exchange-rate service (ECB data, no key needed) |
