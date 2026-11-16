@@ -5,12 +5,13 @@ import { ALL_CURRENCIES, POPULAR } from "@/lib/currencyData";
 import { homeFirst, toOptions } from "@/lib/currencyOptions";
 import { listEntries, recentBackupRuns } from "@/lib/db";
 import { requireAuth } from "@/lib/session";
-import { enabledCurrencies, profiles } from "@/lib/settings";
+import { easterEggPhoto, enabledCurrencies, profiles } from "@/lib/settings";
 import { BackupNowButton, ImportForm, RestoreButton } from "./BackupControls";
 import { cookies } from "next/headers";
 import { THEME_COOKIE, parseTheme } from "@/lib/theme";
 import { CurrencySettings } from "./CurrencySettings";
 import { ThemeSettings } from "./ThemeSettings";
+import { EasterEggSettings } from "./EasterEggSettings";
 import { PersonSettings } from "./PersonSettings";
 
 const when = (iso: string) =>
@@ -21,7 +22,8 @@ export default async function SettingsPage() {
   const home = config.homeCurrency;
   const configured = backupsConfigured();
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
-  const [prof, enabled, entries, runs, backups] = await Promise.all([
+  const [egg, prof, enabled, entries, runs, backups] = await Promise.all([
+    easterEggPhoto(),
     profiles(),
     enabledCurrencies(),
     listEntries(),
@@ -64,6 +66,16 @@ export default async function SettingsPage() {
               <PersonSettings key={p} person={p} name={people[p]} photo={prof[p].photo} venmo={prof[p].venmo} />
             ))}
           </div>
+        </section>
+
+        <section className="card space-y-3">
+          <h2 className="section-title">
+            <span aria-hidden>🥚</span> Easter egg <Scope shared />
+          </h2>
+          <p className="text-sm text-muted">
+            Once a minute, this picture floats across the balance with the dollar signs, as a round headshot.
+          </p>
+          <EasterEggSettings photo={egg} />
         </section>
 
         <section className="card space-y-3">

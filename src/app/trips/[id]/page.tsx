@@ -13,7 +13,7 @@ import { deletedEntries, getTrip, listEntries } from "@/lib/db";
 import { summarize, tripPath } from "@/lib/ledger";
 import { formatMoney } from "@/lib/money";
 import { requireAuth } from "@/lib/session";
-import { currentTripId, defaultCurrency, defaultPayer, enabledCurrencies, profiles } from "@/lib/settings";
+import { currentTripId, defaultCurrency, defaultPayer, easterEggPhoto, enabledCurrencies, profiles } from "@/lib/settings";
 import { computeStats, historyItems } from "@/lib/stats";
 import { cookies } from "next/headers";
 import { HISTORY_SORT_COOKIE, parseHistorySort } from "@/lib/historySort";
@@ -27,12 +27,13 @@ export default async function TripPage({ params, searchParams }: PageProps<"/tri
   // Old links used the trip's id; send them to its address.
   if (id !== trip.slug) redirect(tripPath(trip));
   const home = config.homeCurrency;
-  const [entries, deleted, enabled, prof, current] = await Promise.all([
+  const [entries, deleted, enabled, prof, current, egg] = await Promise.all([
     listEntries(trip.id),
     deletedEntries(trip.id),
     enabledCurrencies(),
     profiles(),
     currentTripId(),
+    easterEggPhoto(),
   ]);
   const summary = summarize(entries, home);
   // Only entries that are still gone (not restored or re-imported), each listed once.
@@ -73,6 +74,7 @@ export default async function TripPage({ params, searchParams }: PageProps<"/tri
           profiles={prof}
           home={home}
           hasEntries={entries.length > 0}
+          easterEgg={egg}
         />
         {settled && (
           <p className="-mt-4 rounded-lg bg-good/10 px-3 py-2 text-center text-sm font-medium text-good">
