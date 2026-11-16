@@ -1,12 +1,16 @@
 package com.travelsplit.app
 
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
+import com.github.takahirom.roborazzi.captureRoboImage
 import com.github.takahirom.roborazzi.captureScreenRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -15,7 +19,8 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Renders the real screens with sample data and saves PNGs to app/build/screenshots/.
+ * Renders the real screens with sample data and saves PNGs to app/build/screenshots/
+ * (CI copies them to docs/screenshots/).
  * Run with: ./gradlew :app:recordRoborazziDebug
  */
 @OptIn(ExperimentalRoborazziApi::class)
@@ -74,13 +79,21 @@ class ScreenshotTest {
 
     @Test
     fun joinTrip() {
+        waitForTrips()
         compose.onNodeWithText("Join trip").performClick()
-        capture("7_join_trip")
+        compose.waitForIdle()
+        // A dialog is its own window; capture just the dialog.
+        compose.onNode(isDialog()).captureRoboImage("build/screenshots/7_join_trip.png")
     }
 
     @Test
     fun newTrip() {
-        compose.onNodeWithText("New trip").performClick()
+        waitForTrips()
+        compose.onAllNodesWithText("New trip").onFirst().performClick()
         capture("8_new_trip")
+    }
+
+    private fun waitForTrips() {
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Japan & Korea").fetchSemanticsNodes().isNotEmpty() }
     }
 }

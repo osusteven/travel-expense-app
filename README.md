@@ -2,6 +2,19 @@
 
 An Android app for tracking shared travel expenses between two people, similar to Tricount.
 
+## Screenshots
+
+| Trips | Expenses | Balance | Expense (custom split) |
+|---|---|---|---|
+| ![Trips](docs/screenshots/1_trips.png) | ![Expenses](docs/screenshots/2_expenses.png) | ![Balance](docs/screenshots/3_balance.png) | ![Edit expense](docs/screenshots/4_edit_expense.png) |
+
+| New expense | Invite partner | Join a trip | New trip |
+|---|---|---|---|
+| ![New expense](docs/screenshots/5_new_expense.png) | ![Invite](docs/screenshots/6_invite_banner.png) | ![Join](docs/screenshots/7_join_trip.png) | ![New trip](docs/screenshots/8_new_trip.png) |
+
+These are generated from the real UI with sample data by `ScreenshotTest` (`./gradlew :app:recordRoborazziDebug`)
+and updated automatically by CI.
+
 ## Features
 
 - **Trips**: each trip has two people and a main currency that balances are shown in.
