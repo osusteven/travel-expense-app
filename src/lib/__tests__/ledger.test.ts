@@ -206,7 +206,7 @@ describe("trips", () => {
       entry({ tripId: TRIP, amountMinor: 10000 }),
       entry({ tripId: OTHER, amountMinor: 4000, paidBy: "p2" }),
     ];
-    const csv = toCsv(entries, "USD", { p1: "Browning", p2: "McAlnois" }, [
+    const csv = toCsv(entries, "USD", { p1: "Browning", p2: "McAlonis" }, [
       { id: TRIP, name: "Japan", slug: "japan", createdAt: "" },
       { id: OTHER, name: "Lisbon", slug: "lisbon", createdAt: "" },
     ]);

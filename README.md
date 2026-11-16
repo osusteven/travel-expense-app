@@ -9,7 +9,7 @@ and see who owes whom.
 
 | Who owes whom (sides swap) | | Payment in History |
 |---|---|---|
-| ![McAlnois owes](docs/screenshots/hero_mcalnois_owes.png) | ![Browning owes](docs/screenshots/hero_browning_owes.png) | ![Payment](docs/screenshots/history_payment.png) |
+| ![McAlonis owes](docs/screenshots/hero_mcalonis_owes.png) | ![Browning owes](docs/screenshots/hero_browning_owes.png) | ![Payment](docs/screenshots/history_payment.png) |
 
 Also: [settings](docs/screenshots/5_settings.png) · [people](docs/screenshots/settings_people.png) · [phone](docs/screenshots/7_mobile.png) · [dark mode](docs/screenshots/8_dark.png)
 
