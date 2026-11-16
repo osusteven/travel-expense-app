@@ -205,6 +205,38 @@ body {
   container-type: size;
 }
 
+/* One of your icons in place of a dollar sign: crosses in the first 5 s of a 30 s cycle, hidden otherwise. */
+.money-face {
+  position: absolute;
+  left: 0;
+  display: block;
+  border-radius: 9999px;
+  box-shadow:
+    0 0 0 3px #4ade80,
+    0 4px 12px rgb(0 0 0 / 0.35);
+  animation: money-face 30s linear infinite;
+  will-change: transform;
+}
+
+@keyframes money-face {
+  0% {
+    transform: translate(-3rem, 0) rotate(-10deg);
+    visibility: visible;
+  }
+  8.33% {
+    transform: translate(calc(50cqw - 1.25rem), -10px) rotate(8deg);
+  }
+  16.66% {
+    transform: translate(calc(100cqw + 1rem), 0) rotate(-10deg);
+    visibility: visible;
+  }
+  16.67%,
+  100% {
+    transform: translate(calc(100cqw + 1rem), 0);
+    visibility: hidden;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .money-rain {
     display: none;

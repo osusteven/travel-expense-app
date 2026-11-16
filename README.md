@@ -22,7 +22,8 @@ Also: [settings](docs/screenshots/5_settings.png) · [people](docs/screenshots/s
 - **People.** Upload a photo for each person in **Settings → People**. It's shrunk to a small round icon and used in
   the balance at the top, History and Statistics. Person 1 is always on the left in red and person 2 always on the
   right in blue; nothing moves when the balance changes. The arrow between you points toward whoever is owed, and
-  green dollar signs drift across the block in that direction (hidden if the device has "reduce motion" on). Each
+  green dollar signs drift across the block in that direction; every 15 seconds one of them is one of your icons
+  instead, alternating between the two of you (all hidden if the device has "reduce motion" on). Each
   person's total sits on their side, with the trip total in the middle.
 - **Settle up.** Record a payment with the amount (prefilled with the full balance), date, method (Venmo, cash,
   Zelle, PayPal, bank transfer or other) and a note or reference. History shows it with **✓ Balance: $0.00** when

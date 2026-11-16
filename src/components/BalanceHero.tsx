@@ -49,7 +49,12 @@ export function BalanceHero({
     >
       <span aria-hidden className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
       <span aria-hidden className="absolute -bottom-12 -left-8 h-36 w-36 rounded-full bg-white/10" />
-      {owed && <MoneyRain direction={direction} />}
+      {owed && (
+        <MoneyRain
+          direction={direction}
+          faces={(["p1", "p2"] as const).map((p) => ({ person: p, name: people[p], photo: profiles[p].photo }))}
+        />
+      )}
       {/* Amount across the top; below it the two people, with the money flowing from one to the other. */}
       <div className="relative">
         {owed ? (
