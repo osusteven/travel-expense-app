@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/* Tailwind's dark: classes follow the same rule as the colors below. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
+
 :root {
   color-scheme: light;
   --background: #f6f5fb;
@@ -32,8 +44,12 @@
   --series-other: #9a97ad;
 }
 
+/*
+ * Dark mode: follows the device unless this device chose Light or Dark in Settings
+ * (stored per device; the page sets data-theme on <html>).
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     color-scheme: dark;
     --background: #120f24;
     --foreground: #ece9fb;
@@ -62,6 +78,35 @@
     --series-8: #e66767;
     --series-other: #6f6a8f;
   }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #120f24;
+  --foreground: #ece9fb;
+  --card: #1c1834;
+  --subtle: #262143;
+  --line: #342e57;
+  --muted: #a59fc9;
+  --accent: #8b7cf6;
+  --accent-2: #f472b6;
+  --accent-3: #fb923c;
+  --p1: #f0616f;
+  --p2: #5b8ef5;
+  --good: #4ade80;
+  --bad: #fb923c;
+  --hero-from: #4733c4;
+  --hero-via: #7e2fb3;
+  --hero-to: #b8325f;
+
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #0ca30c;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+  --series-other: #6f6a8f;
 }
 
 @theme inline {

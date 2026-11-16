@@ -7,7 +7,10 @@ import { listEntries, recentBackupRuns } from "@/lib/db";
 import { requireAuth } from "@/lib/session";
 import { enabledCurrencies, profiles } from "@/lib/settings";
 import { BackupNowButton, ImportForm, RestoreButton } from "./BackupControls";
+import { cookies } from "next/headers";
+import { THEME_COOKIE, parseTheme } from "@/lib/theme";
 import { CurrencySettings } from "./CurrencySettings";
+import { ThemeSettings } from "./ThemeSettings";
 import { PersonSettings } from "./PersonSettings";
 
 const when = (iso: string) =>
@@ -17,6 +20,7 @@ export default async function SettingsPage() {
   await requireAuth();
   const home = config.homeCurrency;
   const configured = backupsConfigured();
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
   const [prof, enabled, entries, runs, backups] = await Promise.all([
     profiles(),
     enabledCurrencies(),
@@ -32,11 +36,24 @@ export default async function SettingsPage() {
     <>
       <Header active="settings" />
       <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6">
-        <h1 className="text-2xl font-extrabold tracking-tight">Settings</h1>
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight">Settings</h1>
+          <p className="mt-1 text-sm text-muted">
+            <Scope shared /> settings apply to both of you. <Scope /> settings only affect the phone or computer
+            you&apos;re using now.
+          </p>
+        </div>
 
         <section className="card space-y-3">
           <h2 className="section-title">
-            <span aria-hidden>🧑‍🤝‍🧑</span> People
+            <span aria-hidden>🌓</span> Appearance <Scope />
+          </h2>
+          <ThemeSettings initial={theme} />
+        </section>
+
+        <section className="card space-y-3">
+          <h2 className="section-title">
+            <span aria-hidden>🧑‍🤝‍🧑</span> People <Scope shared />
           </h2>
           <p className="text-sm text-muted">
             Photos become each person&apos;s round icon in the balance, History and Statistics. With a Venmo username,
@@ -51,7 +68,7 @@ export default async function SettingsPage() {
 
         <section className="card space-y-3">
           <h2 className="section-title">
-            <span aria-hidden>💱</span> Currencies
+            <span aria-hidden>💱</span> Currencies <Scope shared />
           </h2>
           <p className="text-sm text-muted">Choose which currencies appear in the form.</p>
           <CurrencySettings all={toOptions(homeFirst(home, ALL_CURRENCIES))} enabled={enabled} popular={POPULAR} home={home} inUse={inUse} />
@@ -59,7 +76,7 @@ export default async function SettingsPage() {
 
         <section className="card space-y-4">
           <h2 className="section-title">
-            <span aria-hidden>🛟</span> Automatic backups
+            <span aria-hidden>🛟</span> Automatic backups <Scope shared />
           </h2>
           {!configured ? (
             <div className="rounded-xl bg-accent-3/10 p-3 text-sm">
@@ -122,7 +139,7 @@ export default async function SettingsPage() {
 
         <section className="card space-y-3">
           <h2 className="section-title">
-            <span aria-hidden>📥</span> Import
+            <span aria-hidden>📥</span> Import <Scope shared />
           </h2>
           <p className="text-sm text-muted">
             Load a JSON export or a downloaded backup from this app, for example to recover after a problem or move to a
@@ -178,5 +195,16 @@ function Status({ label, value, detail, tone }: { label: string; value: string; 
       </p>
       {detail && <p className={`mt-0.5 text-xs ${tone === "bad" ? "text-bad" : "text-muted"}`}>{detail}</p>}
     </div>
+  );
+}
+
+/** Small label saying whether a setting is shared by both people or only applies to this device. */
+function Scope({ shared = false }: { shared?: boolean }) {
+  return shared ? (
+    <span className="chip ml-1 bg-accent/12 align-middle text-[11px] font-semibold text-accent">Shared</span>
+  ) : (
+    <span className="chip ml-1 bg-accent-3/15 align-middle text-[11px] font-semibold text-[color-mix(in_oklab,var(--accent-3)_70%,var(--foreground))]">
+      This device
+    </span>
   );
 }

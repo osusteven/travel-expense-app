@@ -45,6 +45,9 @@ Also: [settings](docs/screenshots/5_settings.png) · [people](docs/screenshots/s
   by country, with hover details and a table view), and what each person paid compared with their share.
 - **Settings.** Choose which currencies appear in the form. Each currency is shown with its country and flag. The
   form remembers the last currency and the last "Paid by" person used on each device.
+- **Appearance.** System, Light or Dark, chosen separately on each phone or computer. Settings marks every section
+  **Shared** (applies to both of you: people, currencies, backups, import) or **This device** (appearance; the form
+  also remembers each device's last currency and payer).
 - **Import.** Load a JSON export or backup, either merging it in or replacing everything. A safety backup is taken
   first.
 - **Automatic backups.** See [Backups](#backups) below.
