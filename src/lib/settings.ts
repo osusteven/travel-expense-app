@@ -6,6 +6,7 @@ import { getSetting, setSetting } from "./db";
 import type { PersonKey } from "./ledger";
 
 export const LAST_CURRENCY_COOKIE = "ledger_last_currency";
+export const LAST_PAYER_COOKIE = "ledger_last_payer";
 
 /** Currencies offered in the form. Defaults to the popular list; the home currency is always included. */
 export async function enabledCurrencies(): Promise<string[]> {
@@ -18,6 +19,11 @@ export async function enabledCurrencies(): Promise<string[]> {
 export async function defaultCurrency(enabled: string[]): Promise<string> {
   const last = (await cookies()).get(LAST_CURRENCY_COOKIE)?.value;
   return last && enabled.includes(last) ? last : config.homeCurrency;
+}
+
+/** Who this device picked under "Paid by" on its last added entry (person 1 if none yet). */
+export async function defaultPayer(): Promise<PersonKey> {
+  return (await cookies()).get(LAST_PAYER_COOKIE)?.value === "p2" ? "p2" : "p1";
 }
 
 // ---- Trips ----

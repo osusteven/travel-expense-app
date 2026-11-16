@@ -44,7 +44,7 @@ Also: [settings](docs/screenshots/5_settings.png) · [people](docs/screenshots/s
 - **Statistics.** Total spent, average per day, the biggest expense, spending by country, spending per day (stacked
   by country, with hover details and a table view), and what each person paid compared with their share.
 - **Settings.** Choose which currencies appear in the form. Each currency is shown with its country and flag. The
-  form remembers the last currency used on each device.
+  form remembers the last currency and the last "Paid by" person used on each device.
 - **Import.** Load a JSON export or backup, either merging it in or replacing everything. A safety backup is taken
   first.
 - **Automatic backups.** See [Backups](#backups) below.

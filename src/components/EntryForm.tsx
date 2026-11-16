@@ -29,6 +29,7 @@ export function EntryForm({
   homeCurrency,
   currencies,
   defaultCurrency,
+  defaultPaidBy = "p1",
   entry,
 }: {
   /** The trip new entries are added to. */
@@ -38,6 +39,8 @@ export function EntryForm({
   /** Currencies for the dropdown (the enabled ones from Settings), most useful first. */
   currencies: CurrencyOption[];
   defaultCurrency: string;
+  /** Who's selected under "Paid by" for a new entry: whoever this device picked last time. */
+  defaultPaidBy?: PersonKey;
   /** Present when editing. */
   entry?: Entry;
 }) {
@@ -55,7 +58,7 @@ export function EntryForm({
   const date = pickedDate || today;
   const [amount, setAmount] = useState(entry ? plainAmount(entry.amountMinor, entry.currency) : "");
   const [currency, setCurrency] = useState(entry?.currency ?? defaultCurrency);
-  const [paidBy, setPaidBy] = useState<PersonKey>(entry?.paidBy ?? "p1");
+  const [paidBy, setPaidBy] = useState<PersonKey>(entry?.paidBy ?? defaultPaidBy);
   const [split, setSplit] = useState<SplitMode>(entry && entry.kind === "expense" ? entry.split : "equal");
   const [p1Share, setP1Share] = useState(
     entry?.p1ShareMinor != null ? plainAmount(entry.p1ShareMinor, entry.currency) : "",

@@ -13,7 +13,7 @@ import { deletedEntries, getTrip, listEntries } from "@/lib/db";
 import { settlement, summarize, tripPath } from "@/lib/ledger";
 import { formatMoney } from "@/lib/money";
 import { requireAuth } from "@/lib/session";
-import { currentTripId, defaultCurrency, enabledCurrencies, profiles } from "@/lib/settings";
+import { currentTripId, defaultCurrency, defaultPayer, enabledCurrencies, profiles } from "@/lib/settings";
 import { computeStats, historyItems } from "@/lib/stats";
 
 export default async function TripPage({ params, searchParams }: PageProps<"/trips/[id]">) {
@@ -93,6 +93,7 @@ export default async function TripPage({ params, searchParams }: PageProps<"/tri
             homeCurrency={home}
             currencies={toOptions(currencies)}
             defaultCurrency={await defaultCurrency(currencies)}
+            defaultPaidBy={await defaultPayer()}
           />
         </section>
 

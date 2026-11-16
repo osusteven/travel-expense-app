@@ -8,7 +8,7 @@ import { createTrip, deleteEntry, deleteTrip, getEntry, getTrip, listTrips, rena
 import { type Entry, PAYMENT_METHODS, type PaymentMethod, tripPath } from "@/lib/ledger";
 import { parseDecimal, toMinor } from "@/lib/money";
 import { requireAuth } from "@/lib/session";
-import { LAST_CURRENCY_COOKIE, currentTripId, setCurrentTrip } from "@/lib/settings";
+import { LAST_CURRENCY_COOKIE, LAST_PAYER_COOKIE, currentTripId, setCurrentTrip } from "@/lib/settings";
 import { type FieldErrors, parseEntryForm } from "@/lib/validate";
 
 export type SaveState = { errors: FieldErrors; message?: string };
@@ -42,14 +42,17 @@ export async function saveEntryAction(_prev: SaveState, form: FormData): Promise
     if (!trip) return { errors: {}, message: "This trip no longer exists." };
     tripId = trip.id;
     await saveEntry({ ...parsed.value, id: crypto.randomUUID(), tripId, createdAt: now, updatedAt: now }, "create");
-    // Remember this device's currency so the next entry starts with it.
-    (await cookies()).set(LAST_CURRENCY_COOKIE, parsed.value.currency, {
+    // Remember this device's currency and payer so the next entry starts with them.
+    const jar = await cookies();
+    const opts = {
       path: "/",
       maxAge: 60 * 60 * 24 * 365,
-      sameSite: "lax",
+      sameSite: "lax" as const,
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-    });
+    };
+    jar.set(LAST_CURRENCY_COOKIE, parsed.value.currency, opts);
+    jar.set(LAST_PAYER_COOKIE, parsed.value.paidBy, opts);
   }
   revalidatePath("/", "layout");
   const path = tripPath((await getTrip(tripId)) ?? { slug: tripId });
