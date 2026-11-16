@@ -119,16 +119,3 @@ export async function savePersonAction(_prev: ActionResult, form: FormData): Pro
   revalidatePath("/", "layout");
   return { ok: "Saved." };
 }
-
-export async function saveEasterEggAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
-  await requireAuth();
-  if (form.get("remove") === "1") {
-    await setSetting("easterEggPhoto", null);
-  } else {
-    const photo = String(form.get("photo") ?? "");
-    if (!photo.startsWith(PHOTO_PREFIX) || photo.length > 150_000) return { error: "Choose a picture first." };
-    await setSetting("easterEggPhoto", photo);
-  }
-  revalidatePath("/", "layout");
-  return { ok: "Saved." };
-}

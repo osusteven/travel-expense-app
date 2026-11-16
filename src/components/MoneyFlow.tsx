@@ -45,19 +45,9 @@ const DROPS = (() => {
  * Green dollar signs drifting sideways across the whole balance block, like rain blown toward whoever is owed.
  * Decorative only (the text says who owes whom); hidden when the device asks for reduced motion.
  */
-export function MoneyRain({ direction, easterEgg }: { direction: Direction; easterEgg?: string }) {
+export function MoneyRain({ direction }: { direction: Direction }) {
   return (
     <div aria-hidden className="money-rain pointer-events-none absolute inset-0 overflow-hidden">
-      {easterEgg && (
-        // Once a minute, a headshot floats across with the money (Settings → Easter egg).
-        // eslint-disable-next-line @next/next/no-img-element -- small inline data URL
-        <img
-          src={easterEgg}
-          alt=""
-          className="money-egg"
-          style={{ animationDirection: direction === "right" ? "normal" : "reverse" }}
-        />
-      )}
       {DROPS.map((d, i) => (
         <span
           key={i}

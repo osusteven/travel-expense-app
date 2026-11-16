@@ -46,8 +46,6 @@ Also: [settings](docs/screenshots/5_settings.png) · [people](docs/screenshots/s
   by country, with hover details and a table view), and what each person paid compared with their share.
 - **Settings.** Choose which currencies appear in the form. Each currency is shown with its country and flag. The
   form remembers the last currency and the last "Paid by" person used on each device.
-- **Easter egg.** Upload a picture under **Settings → Easter egg** and, once a minute, it floats across the balance
-  as a round headshot along with the dollar signs.
 - **History sort.** Newest or oldest first (grouped by day), highest or lowest amount, or A–Z. Each device
   remembers its own choice.
 - **Appearance.** System, Light or Dark, chosen separately on each phone or computer. Settings marks every section

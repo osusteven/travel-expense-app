@@ -55,10 +55,3 @@ export async function profiles(): Promise<Profiles> {
 export async function saveProfiles(value: Profiles): Promise<void> {
   await setSetting("profiles", value);
 }
-
-// ---- Easter egg ----
-
-/** A picture (small square JPEG data URL) that floats across the balance once a minute. */
-export async function easterEggPhoto(): Promise<string | undefined> {
-  return (await getSetting<string>("easterEggPhoto")) ?? undefined;
-}

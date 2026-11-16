@@ -18,7 +18,6 @@ export function BalanceHero({
   profiles,
   home,
   hasEntries,
-  easterEgg,
 }: {
   tripId: string;
   tripName: string;
@@ -27,8 +26,6 @@ export function BalanceHero({
   profiles: Profiles;
   home: string;
   hasEntries: boolean;
-  /** Picture that floats by with the money once a minute (Settings → Easter egg). */
-  easterEgg?: string;
 }) {
   const owed = settlement(summary.balance);
   const left: PersonKey = "p1";
@@ -52,7 +49,7 @@ export function BalanceHero({
     >
       <span aria-hidden className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
       <span aria-hidden className="absolute -bottom-12 -left-8 h-36 w-36 rounded-full bg-white/10" />
-      {owed && <MoneyRain direction={direction} easterEgg={easterEgg} />}
+      {owed && <MoneyRain direction={direction} />}
       {/* Amount across the top; below it the two people, with the money flowing from one to the other. */}
       <div className="relative">
         {owed ? (
