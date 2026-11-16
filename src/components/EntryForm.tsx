@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef, useState, useSyncExternalStore } fro
 import { saveEntryAction, type SaveState } from "@/app/actions";
 import type { People } from "@/lib/config";
 import { CurrencyPicker, type CurrencyOption } from "./CurrencyPicker";
-import { type Entry, type EntryKind, PAYMENT_METHODS, type PersonKey, type SplitMode, entryEffect, methodLabel, other } from "@/lib/ledger";
+import { type Entry, type EntryKind, PAYMENT_METHODS, type PersonKey, type SplitMode, entryEffect, methodLabel, other, rateSourceLabel } from "@/lib/ledger";
 import { formatMoney, formatRate, parseDecimal, plainAmount, toMinor } from "@/lib/money";
 
 type RateState = {
@@ -224,17 +224,15 @@ export function EntryForm({
                   className="input"
                 />
                 <button type="button" onClick={() => fetchRate(true)} className="btn-secondary whitespace-nowrap">
-                  {rate.status === "loading" ? "Fetching…" : "Get ECB rate"}
+                  {rate.status === "loading" ? "Fetching…" : "Get rate"}
                 </button>
               </div>
               <p className={`mt-1 text-xs ${rate.status === "error" ? "text-red-600 dark:text-red-400" : "text-muted"}`}>
                 {rate.status === "error"
                   ? rate.message
-                  : rate.source === "ecb" && rate.rate
-                    ? `European Central Bank reference rate for ${rate.rateDate}`
-                    : rate.rate
-                      ? "Rate entered manually"
-                      : ""}
+                  : rate.rate
+                    ? rateSourceLabel(rate.source, rate.rateDate)
+                    : ""}
               </p>
             </Field>
           ) : (

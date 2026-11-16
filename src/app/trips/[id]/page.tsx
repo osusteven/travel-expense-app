@@ -60,7 +60,7 @@ export default async function TripPage({ params, searchParams }: PageProps<"/tri
             </form>
           )}
           <Link href={`${tripPath(trip)}/edit`} className="btn-secondary !py-1 text-xs">
-            Rename / delete
+            Trip settings
           </Link>
         </div>
 

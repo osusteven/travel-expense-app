@@ -138,7 +138,7 @@ function HistoryCard({ item: i, people, home, photos }: { item: HistoryItem; peo
     ? null
     : i.rateSource === "charged"
       ? "Charged amount from statement"
-      : `1 ${i.currency} = ${formatRate(i.rate)} ${home} · ${i.rateSource === "ecb" ? `ECB ${i.rateDate ?? ""}` : "manual rate"}`;
+      : `1 ${i.currency} = ${formatRate(i.rate)} ${home} · ${i.rateSource === "ecb" ? `ECB ${i.rateDate ?? ""}` : i.rateSource === "market" ? `market rate ${i.rateDate ?? ""}` : "manual rate"}`;
   const balance =
     i.balanceAfter === 0
       ? "All square after this"

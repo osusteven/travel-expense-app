@@ -28,7 +28,23 @@ export const methodLabel: Record<PaymentMethod, string> = {
 };
 
 /** How the exchange rate was obtained. */
-export type RateSource = "same" | "ecb" | "manual" | "charged";
+export type RateSource = "same" | "ecb" | "market" | "manual" | "charged";
+
+/** How a rate's origin is described to people. */
+export function rateSourceLabel(source: RateSource, rateDate: string | null): string {
+  switch (source) {
+    case "ecb":
+      return `European Central Bank rate${rateDate ? ` for ${rateDate}` : ""}`;
+    case "market":
+      return `Market rate${rateDate ? ` for ${rateDate}` : ""}`;
+    case "charged":
+      return "Charged amount from statement";
+    case "manual":
+      return "Rate entered manually";
+    default:
+      return "";
+  }
+}
 
 export interface Entry {
   id: string;

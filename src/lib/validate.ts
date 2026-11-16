@@ -16,7 +16,7 @@ const raw = z.object({
   p1Share: z.string().optional().default(""),
   rateMode: z.enum(["rate", "charged"]).default("rate"),
   rate: z.string().optional().default(""),
-  rateSource: z.enum(["same", "ecb", "manual", "charged"]).default("manual"),
+  rateSource: z.enum(["same", "ecb", "market", "manual", "charged"]).default("manual"),
   rateDate: z.string().optional().default(""),
   homeAmount: z.string().optional().default(""),
   notes: z.string().trim().max(1000).optional().default(""),
@@ -71,7 +71,7 @@ export function parseEntryForm(
       if (!r || r.lte(0)) errors.rate = "Enter the exchange rate";
       else {
         rate = r.toFixed();
-        rateSource = f.rateSource === "ecb" ? "ecb" : "manual";
+        rateSource = f.rateSource === "ecb" || f.rateSource === "market" ? f.rateSource : "manual";
       }
     }
   }

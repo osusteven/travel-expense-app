@@ -13,6 +13,16 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? "",
   /** Frankfurter (European Central Bank reference rates). Free, no API key. */
   ratesApiBase: process.env.RATES_API_BASE ?? "https://api.frankfurter.dev/v1",
+  /**
+   * Fallback for currencies the ECB doesn't publish: currency-api (free, no key), on two mirrors.
+   * {date} is YYYY-MM-DD or "latest"; {code} is the lower-case currency code.
+   */
+  marketRatesUrls: process.env.MARKET_RATES_URL
+    ? [process.env.MARKET_RATES_URL]
+    : [
+        "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{date}/v1/currencies/{code}.min.json",
+        "https://{date}.currency-api.pages.dev/v1/currencies/{code}.min.json",
+      ],
 };
 
 export type People = { p1: string; p2: string };

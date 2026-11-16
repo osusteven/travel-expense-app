@@ -95,6 +95,8 @@ const schema = `
   ALTER TABLE entries ADD COLUMN IF NOT EXISTS trip_id UUID;
   ALTER TABLE entries ADD COLUMN IF NOT EXISTS method TEXT;
   CREATE INDEX IF NOT EXISTS entries_trip ON entries (trip_id);
+  -- Which service a cached rate came from (ECB, or market rates for other currencies).
+  ALTER TABLE rates ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'ecb';
   -- Trip web addresses (/trips/japan-korea).
   ALTER TABLE trips ADD COLUMN IF NOT EXISTS slug TEXT;
   CREATE UNIQUE INDEX IF NOT EXISTS trips_slug ON trips (slug);
@@ -275,18 +277,21 @@ export async function deletedEntries(tripId?: string): Promise<LogItem[]> {
 
 export async function cachedRate(base: string, quote: string, date: string) {
   const res = await (await db()).query(
-    "SELECT rate::text AS rate, rate_date FROM rates WHERE base = $1 AND quote = $2 AND date = $3",
+    "SELECT rate::text AS rate, rate_date, source FROM rates WHERE base = $1 AND quote = $2 AND date = $3",
     [base, quote, date],
   );
   const r = res.rows[0];
-  return r ? { rate: String(r.rate), rateDate: String(r.rate_date) } : null;
+  return r
+    ? { rate: String(r.rate), rateDate: String(r.rate_date), source: (r.source === "market" ? "market" : "ecb") as "ecb" | "market" }
+    : null;
 }
 
-export async function storeRate(base: string, quote: string, date: string, rate: string, rateDate: string) {
+export async function storeRate(base: string, quote: string, date: string, rate: string, rateDate: string, source: "ecb" | "market") {
   await (await db()).query(
-    `INSERT INTO rates (base, quote, date, rate, rate_date) VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (base, quote, date) DO UPDATE SET rate = EXCLUDED.rate, rate_date = EXCLUDED.rate_date, fetched_at = now()`,
-    [base, quote, date, rate, rateDate],
+    `INSERT INTO rates (base, quote, date, rate, rate_date, source) VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (base, quote, date) DO UPDATE SET rate = EXCLUDED.rate, rate_date = EXCLUDED.rate_date,
+       source = EXCLUDED.source, fetched_at = now()`,
+    [base, quote, date, rate, rateDate, source],
   );
 }
 

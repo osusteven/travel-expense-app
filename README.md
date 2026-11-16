@@ -64,8 +64,10 @@ The app follows these practices, and they're also good rules if you ever reconci
 3. **Freeze the rate at the time of the expense.** Each entry stores its own rate, the rate's source and the rate's
    date. Converting old expenses at today's rate would shift the balance every day, so it's never done.
 4. **Use the rate from the transaction date.** The app looks up the European Central Bank reference rate for that
-   date. On weekends and holidays there's no ECB rate, so it uses the previous business day and says so. The ECB
-   covers about 30 major currencies. For others (e.g. VND) you type the rate in.
+   date. On weekends and holidays there's no ECB rate, so it uses the previous business day and says so. The ECB only
+   covers about 30 major currencies. For the rest (e.g. Laos LAK, Cambodia KHR, Vietnam VND) it uses the free
+   [currency-api](https://github.com/fawazahmed0/exchange-api) daily market rates, which cover about 200 currencies,
+   and labels them "Market rate". If neither has a rate, you type it in.
 5. **Best of all, use what you were actually charged.** Pick "I know the USD amount charged" and enter the amount from
    your card or bank statement. That includes your bank's real rate and any foreign-transaction fees, so the split is
    exactly what left your account. The app works out the effective rate and stores the exact charged amount.
@@ -157,3 +159,4 @@ Other commands: `npm test` (unit tests for the money and balance logic), `npm ru
 | `BLOB_READ_WRITE_TOKEN` | set by Vercel | Backup storage (Vercel Blob, private) |
 | `CRON_SECRET` | | Protects the backup endpoint; same value as the GitHub secret |
 | `RATES_API_BASE` | `https://api.frankfurter.dev/v1` | Exchange-rate service (ECB data, no key needed) |
+| `MARKET_RATES_URL` | currency-api on jsDelivr, then Cloudflare | Fallback rates for currencies the ECB doesn't cover |

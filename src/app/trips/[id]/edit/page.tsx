@@ -22,7 +22,8 @@ export default async function EditTripPage({ params }: PageProps<"/trips/[id]/ed
           ← Back to {trip.name}
         </Link>
         <section className="card">
-          <h1 className="section-title mb-4">Rename trip</h1>
+          <h1 className="mb-4 text-2xl font-extrabold tracking-tight">Trip settings</h1>
+          <h2 className="section-title mb-3">Name</h2>
           <RenameTripForm id={trip.id} name={trip.name} />
         </section>
         <section className="card space-y-3">

@@ -13,7 +13,7 @@ const entrySchema = z.object({
   amountMinor: z.number().int().positive(),
   currency: z.string().refine(isKnownCurrency, "unknown currency"),
   rate: z.string().regex(/^\d+(\.\d+)?$/),
-  rateSource: z.enum(["same", "ecb", "manual", "charged"]),
+  rateSource: z.enum(["same", "ecb", "market", "manual", "charged"]),
   rateDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   homeAmountMinor: z.number().int().positive().nullable(),
   paidBy: z.enum(["p1", "p2"]),
