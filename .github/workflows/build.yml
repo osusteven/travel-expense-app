@@ -38,3 +38,12 @@ jobs:
         with:
           name: TravelSplit-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Screenshots
+        run: ./gradlew :app:recordRoborazziDebug
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: app/build/screenshots/*.png

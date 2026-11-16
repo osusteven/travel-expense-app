@@ -161,7 +161,7 @@ class ExpenseViewModel(private val repo: Repository, handle: SavedStateHandle) :
     private suspend fun fetchRateNow() {
         fetchingRate = true
         rateMessage = null
-        repo.rates.fetchRate(currency, baseCurrency)
+        repo.fetchRate(currency, baseCurrency)
             .onSuccess {
                 rateText = Format.plain(it)
                 rateMessage = "Latest ECB reference rate"

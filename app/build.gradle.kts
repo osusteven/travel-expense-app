@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.gms.google-services")
+    id("io.github.takahirom.roborazzi")
 }
 
 android {
@@ -33,6 +34,10 @@ android {
     buildFeatures {
         compose = true
     }
+    testOptions {
+        // Screenshot tests render the real UI on the JVM with Robolectric.
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {
@@ -57,4 +62,13 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-auth")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
+
+    // Screenshot tests: ./gradlew :app:recordRoborazziDebug (images go to app/build/screenshots/)
+    testImplementation(composeBom)
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("androidx.test.ext:junit:1.2.1")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.39.0")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.39.0")
 }
