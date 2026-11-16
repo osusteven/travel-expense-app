@@ -4,11 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.travelsplit.app.ui.expense.ExpenseScreen
 import com.travelsplit.app.ui.theme.TravelSplitTheme
 import com.travelsplit.app.ui.trip.TripScreen
@@ -26,13 +24,10 @@ class MainActivity : ComponentActivity() {
                     composable("trips") {
                         TripsScreen(
                             onOpenTrip = { nav.navigate("trip/$it") },
-                            onNewTrip = { nav.navigate("editTrip/0") },
+                            onNewTrip = { nav.navigate("editTrip/new") },
                         )
                     }
-                    composable(
-                        "editTrip/{tripId}",
-                        arguments = listOf(navArgument("tripId") { type = NavType.LongType }),
-                    ) {
+                    composable("editTrip/{tripId}") {
                         EditTripScreen(
                             onBack = { nav.popBackStack() },
                             onCreated = { id ->
@@ -40,25 +35,16 @@ class MainActivity : ComponentActivity() {
                             },
                         )
                     }
-                    composable(
-                        "trip/{tripId}",
-                        arguments = listOf(navArgument("tripId") { type = NavType.LongType }),
-                    ) { entry ->
-                        val tripId = entry.arguments!!.getLong("tripId")
+                    composable("trip/{tripId}") { entry ->
+                        val tripId = entry.arguments?.getString("tripId").orEmpty()
                         TripScreen(
                             onBack = { nav.popBackStack() },
                             onEditTrip = { nav.navigate("editTrip/$tripId") },
-                            onAddExpense = { nav.navigate("expense/$tripId/0") },
+                            onAddExpense = { nav.navigate("expense/$tripId/new") },
                             onOpenExpense = { nav.navigate("expense/$tripId/$it") },
                         )
                     }
-                    composable(
-                        "expense/{tripId}/{expenseId}",
-                        arguments = listOf(
-                            navArgument("tripId") { type = NavType.LongType },
-                            navArgument("expenseId") { type = NavType.LongType },
-                        ),
-                    ) {
+                    composable("expense/{tripId}/{expenseId}") {
                         ExpenseScreen(onDone = { nav.popBackStack() })
                     }
                 }

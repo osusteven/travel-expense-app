@@ -14,6 +14,7 @@ import com.travelsplit.core.SplitMode
 import com.travelsplit.core.TripSummary
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -28,10 +29,14 @@ data class TripUiState(
 )
 
 class TripViewModel(private val repo: Repository, handle: SavedStateHandle) : ViewModel() {
-    private val tripId: Long = checkNotNull(handle["tripId"])
+    private val tripId: String = checkNotNull(handle["tripId"])
 
-    /** null while loading, or after the trip was deleted. */
-    val state: StateFlow<TripUiState?> = combine(repo.observeTrip(tripId), repo.observeExpenses(tripId)) { trip, expenses ->
+    /** null while loading, or after the trip was deleted (possibly from the other phone). */
+    val state: StateFlow<TripUiState?> = combine(
+        repo.observeTrip(tripId),
+        // Listening fails once the trip is deleted; treat that as "no expenses".
+        repo.observeExpenses(tripId).catch { emit(emptyList()) },
+    ) { trip, expenses ->
         trip?.let {
             val summary = BalanceCalculator.summarize(expenses.map { e -> e.toEntry() }, it.baseCurrency)
             val byCurrency = expenses.filter { e -> e.kind == EntryKind.EXPENSE }
@@ -39,7 +44,15 @@ class TripViewModel(private val repo: Repository, handle: SavedStateHandle) : Vi
                 .mapValues { (_, list) -> list.fold(BigDecimal.ZERO) { acc, e -> acc + e.amount } }
             TripUiState(it, expenses, summary, byCurrency)
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    }.catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Message for inviting the other person to this trip. */
+    fun inviteText(): String {
+        val t = state.value?.trip ?: return ""
+        return "Join our trip \"${t.name}\" in TravelSplit to track our shared expenses.\n\n" +
+            "Open TravelSplit, tap \"Join trip\" and paste this code:\n${t.id}"
+    }
 
     fun deleteTrip(onDeleted: () -> Unit) {
         val trip = state.value?.trip ?: return
@@ -53,21 +66,19 @@ class TripViewModel(private val repo: Repository, handle: SavedStateHandle) : Vi
     fun settleUp() {
         val s = state.value ?: return
         val settlement = s.summary.settlement ?: return
-        viewModelScope.launch {
-            repo.saveExpense(
-                Expense(
-                    tripId = s.trip.id,
-                    title = "Settle up",
-                    amount = settlement.amount,
-                    currency = s.trip.baseCurrency,
-                    rateToBase = BigDecimal.ONE,
-                    paidBy = settlement.from,
-                    splitMode = SplitMode.OTHER_ONLY,
-                    kind = EntryKind.TRANSFER,
-                    date = Format.todayUtcMillis(),
-                )
+        repo.saveExpense(
+            Expense(
+                tripId = s.trip.id,
+                title = "Settle up",
+                amount = settlement.amount,
+                currency = s.trip.baseCurrency,
+                rateToBase = BigDecimal.ONE,
+                paidBy = settlement.from,
+                splitMode = SplitMode.OTHER_ONLY,
+                kind = EntryKind.TRANSFER,
+                date = Format.todayUtcMillis(),
             )
-        }
+        )
     }
 
     /** Plain-text summary for sharing. */

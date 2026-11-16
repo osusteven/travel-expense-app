@@ -38,8 +38,8 @@ import com.travelsplit.app.util.Currencies
 import kotlinx.coroutines.launch
 
 class EditTripViewModel(private val repo: Repository, handle: SavedStateHandle) : ViewModel() {
-    private val tripId: Long = handle["tripId"] ?: 0L
-    val isNew = tripId == 0L
+    private val tripId: String = handle["tripId"] ?: "new"
+    val isNew = tripId == "new"
     private var existing: Trip? = null
 
     var name by mutableStateOf("")
@@ -64,23 +64,35 @@ class EditTripViewModel(private val repo: Repository, handle: SavedStateHandle) 
         }
     }
 
-    fun save(onSaved: (Long) -> Unit) {
+    var saveError by mutableStateOf<String?>(null)
+        private set
+
+    fun save(onSaved: (String) -> Unit) {
         if (!canSave) return
+        val edited = (existing ?: Trip(name = "", firstPerson = "", secondPerson = "", baseCurrency = baseCurrency)).copy(
+            name = name.trim(),
+            firstPerson = firstPerson.trim(),
+            secondPerson = secondPerson.trim(),
+            baseCurrency = baseCurrency,
+        )
         viewModelScope.launch {
-            val trip = (existing ?: Trip(name = "", firstPerson = "", secondPerson = "", baseCurrency = baseCurrency)).copy(
-                name = name.trim(),
-                firstPerson = firstPerson.trim(),
-                secondPerson = secondPerson.trim(),
-                baseCurrency = baseCurrency,
-            )
-            onSaved(repo.saveTrip(trip))
+            saveError = null
+            if (existing != null) {
+                repo.updateTrip(edited)
+                onSaved(edited.id)
+            } else {
+                runCatching { repo.createTrip(edited) }
+                    .onSuccess(onSaved)
+                    // Only the very first sign-in needs a connection.
+                    .onFailure { saveError = "Couldn't connect. The first trip needs an internet connection." }
+            }
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditTripScreen(onBack: () -> Unit, onCreated: (Long) -> Unit) {
+fun EditTripScreen(onBack: () -> Unit, onCreated: (String) -> Unit) {
     val vm = appViewModel { repo, handle -> EditTripViewModel(repo, handle) }
 
     Scaffold(
@@ -123,6 +135,7 @@ fun EditTripScreen(onBack: () -> Unit, onCreated: (Long) -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            vm.saveError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(
                 onClick = {
                     vm.save { id -> if (vm.isNew) onCreated(id) else onBack() }

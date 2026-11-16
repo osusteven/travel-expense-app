@@ -21,6 +21,16 @@ jobs:
       - name: Unit tests
         run: ./gradlew :core:test
 
+      # The app needs app/google-services.json from your Firebase project (see README).
+      # If it isn't committed, build with a placeholder so CI still checks that the code compiles;
+      # that APK won't be able to sync.
+      - name: Firebase config
+        run: |
+          if [ ! -f app/google-services.json ]; then
+            echo "::warning::app/google-services.json not found; building with a placeholder (sync will not work in this APK)"
+            cp .github/ci/google-services.placeholder.json app/google-services.json
+          fi
+
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug
 

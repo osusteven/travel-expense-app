@@ -15,7 +15,24 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FlightTakeoff
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.launch
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -39,19 +56,64 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 
-class TripsViewModel(repo: Repository) : ViewModel() {
-    val trips: StateFlow<List<Trip>?> = repo.observeTrips()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+sealed interface TripsState {
+    data object Loading : TripsState
+    data class Loaded(val trips: List<Trip>) : TripsState
+    data object Offline : TripsState
+}
+
+class TripsViewModel(private val repo: Repository) : ViewModel() {
+    private val retry = MutableStateFlow(0)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val state: StateFlow<TripsState> = retry.flatMapLatest {
+        repo.observeTrips()
+            .map<List<Trip>, TripsState> { TripsState.Loaded(it) }
+            .onStart { emit(TripsState.Loading) }
+            // The first launch needs a connection to sign in; after that everything works offline.
+            .catch { emit(TripsState.Offline) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TripsState.Loading)
+
+    fun retry() { retry.value++ }
+
+    var joining by mutableStateOf(false)
+        private set
+    var joinError by mutableStateOf<String?>(null)
+        private set
+
+    fun clearJoinError() { joinError = null }
+
+    fun join(code: String, onJoined: (String) -> Unit) {
+        viewModelScope.launch {
+            joining = true
+            joinError = null
+            repo.joinTrip(code)
+                .onSuccess { onJoined(it.id) }
+                .onFailure { joinError = it.message ?: "Couldn't join the trip" }
+            joining = false
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TripsScreen(onOpenTrip: (Long) -> Unit, onNewTrip: () -> Unit) {
+fun TripsScreen(onOpenTrip: (String) -> Unit, onNewTrip: () -> Unit) {
     val vm = appViewModel { repo, _ -> TripsViewModel(repo) }
-    val trips by vm.trips.collectAsStateWithLifecycle()
+    val state by vm.state.collectAsStateWithLifecycle()
+    var showJoin by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("TravelSplit") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("TravelSplit") },
+                actions = {
+                    TextButton(onClick = { vm.clearJoinError(); showJoin = true }) {
+                        Icon(Icons.Default.GroupAdd, null, Modifier.size(18.dp))
+                        Text("Join trip", Modifier.padding(start = 6.dp))
+                    }
+                },
+            )
+        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onNewTrip,
@@ -60,15 +122,31 @@ fun TripsScreen(onOpenTrip: (Long) -> Unit, onNewTrip: () -> Unit) {
             )
         },
     ) { padding ->
-        val list = trips
+        val list = (state as? TripsState.Loaded)?.trips
         when {
-            list == null -> Unit
+            state is TripsState.Offline -> Box(Modifier.fillMaxSize().padding(padding).padding(32.dp), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.CloudOff, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.error)
+                    Text("Can't connect", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 16.dp))
+                    Text(
+                        "TravelSplit needs an internet connection the first time it starts. After that it also works offline.",
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 8.dp),
+                    )
+                    Button(onClick = vm::retry) { Text("Try again") }
+                }
+            }
+            list == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
             list.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding).padding(32.dp), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Default.FlightTakeoff, null, Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
                     Text("No trips yet", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 16.dp))
                     Text(
-                        "Create a trip to start tracking shared expenses between two people.",
+                        "Create a trip, then invite your travel partner from the trip's menu. " +
+                            "Or tap \"Join trip\" if they already sent you a code.",
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp),
@@ -100,4 +178,51 @@ fun TripsScreen(onOpenTrip: (Long) -> Unit, onNewTrip: () -> Unit) {
             }
         }
     }
+    if (showJoin) {
+        JoinTripDialog(
+            joining = vm.joining,
+            error = vm.joinError,
+            onDismiss = { showJoin = false },
+            onJoin = { code ->
+                vm.join(code) { id ->
+                    showJoin = false
+                    onOpenTrip(id)
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun JoinTripDialog(
+    joining: Boolean,
+    error: String?,
+    onDismiss: () -> Unit,
+    onJoin: (String) -> Unit,
+) {
+    var code by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Join a trip") },
+        text = {
+            Column {
+                Text("Paste the trip code your travel partner shared with you.")
+                OutlinedTextField(
+                    value = code,
+                    onValueChange = { code = it.trim() },
+                    label = { Text("Trip code") },
+                    singleLine = true,
+                    isError = error != null,
+                    supportingText = error?.let { { Text(it) } },
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onJoin(code) }, enabled = code.isNotBlank() && !joining) {
+                Text(if (joining) "Joining…" else "Join")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }

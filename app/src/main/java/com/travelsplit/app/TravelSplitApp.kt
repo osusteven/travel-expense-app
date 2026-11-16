@@ -1,12 +1,13 @@
 package com.travelsplit.app
 
 import android.app.Application
-import com.travelsplit.app.data.AppDatabase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.travelsplit.app.data.ExchangeRateService
 import com.travelsplit.app.data.Repository
 
 class TravelSplitApp : Application() {
     val repository: Repository by lazy {
-        Repository(AppDatabase.create(this), ExchangeRateService())
+        Repository(FirebaseFirestore.getInstance(), FirebaseAuth.getInstance(), ExchangeRateService())
     }
 }

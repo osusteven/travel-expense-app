@@ -19,9 +19,9 @@ import kotlinx.coroutines.launch
 import java.math.BigDecimal
 
 class ExpenseViewModel(private val repo: Repository, handle: SavedStateHandle) : ViewModel() {
-    private val tripId: Long = checkNotNull(handle["tripId"])
-    private val expenseId: Long = handle["expenseId"] ?: 0L
-    val isNew = expenseId == 0L
+    private val tripId: String = checkNotNull(handle["tripId"])
+    private val expenseId: String = handle["expenseId"] ?: "new"
+    val isNew = expenseId == "new"
     private var existing: Expense? = null
 
     var trip by mutableStateOf<Trip?>(null)
@@ -79,7 +79,7 @@ class ExpenseViewModel(private val repo: Repository, handle: SavedStateHandle) :
     init {
         viewModelScope.launch {
             val t = repo.getTrip(tripId) ?: return@launch
-            val e = if (isNew) null else repo.getExpense(expenseId)
+            val e = if (isNew) null else repo.getExpense(tripId, expenseId)
             if (e != null) {
                 existing = e
                 kind = e.kind
@@ -176,7 +176,7 @@ class ExpenseViewModel(private val repo: Repository, handle: SavedStateHandle) :
         val a = amount!!
         val isTransfer = kind == EntryKind.TRANSFER
         val expense = Expense(
-            id = existing?.id ?: 0,
+            id = existing?.id ?: "",
             tripId = t.id,
             title = title.trim().ifEmpty { "Money given" },
             amount = a,
@@ -189,17 +189,14 @@ class ExpenseViewModel(private val repo: Repository, handle: SavedStateHandle) :
             date = date,
             createdAt = existing?.createdAt ?: System.currentTimeMillis(),
         )
-        viewModelScope.launch {
-            repo.saveExpense(expense)
-            onDone()
-        }
+        // Saved to the local cache instantly; synced to the other phone when online.
+        repo.saveExpense(expense)
+        onDone()
     }
 
     fun delete(onDone: () -> Unit) {
         val e = existing ?: return
-        viewModelScope.launch {
-            repo.deleteExpense(e)
-            onDone()
-        }
+        repo.deleteExpense(e)
+        onDone()
     }
 }

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -43,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -73,7 +75,7 @@ fun TripScreen(
     onBack: () -> Unit,
     onEditTrip: () -> Unit,
     onAddExpense: () -> Unit,
-    onOpenExpense: (Long) -> Unit,
+    onOpenExpense: (String) -> Unit,
 ) {
     val vm = appViewModel { repo, handle -> TripViewModel(repo, handle) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -81,6 +83,12 @@ fun TripScreen(
     var menuOpen by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     val context = LocalContext.current
+
+    // Leave the screen when the trip disappears (deleted here or on the other phone).
+    var loaded by remember { mutableStateOf(false) }
+    LaunchedEffect(state) {
+        if (state != null) loaded = true else if (loaded) onBack()
+    }
 
     Scaffold(
         topBar = {
@@ -101,12 +109,24 @@ fun TripScreen(
                     IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, "More") }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
+                            text = { Text("Invite travel partner") },
+                            leadingIcon = { Icon(Icons.Default.PersonAdd, null) },
+                            onClick = {
+                                menuOpen = false
+                                val send = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, vm.inviteText())
+                                }
+                                context.startActivity(Intent.createChooser(send, "Invite travel partner"))
+                            },
+                        )
+                        DropdownMenuItem(
                             text = { Text("Edit trip") },
                             leadingIcon = { Icon(Icons.Default.Edit, null) },
                             onClick = { menuOpen = false; onEditTrip() },
                         )
                         DropdownMenuItem(
-                            text = { Text("Delete trip") },
+                            text = { Text("Delete trip (for both)") },
                             leadingIcon = { Icon(Icons.Default.Delete, null) },
                             onClick = { menuOpen = false; confirmDelete = true },
                         )
@@ -120,6 +140,13 @@ fun TripScreen(
     ) { padding ->
         val s = state ?: return@Scaffold
         Column(Modifier.fillMaxSize().padding(padding)) {
+            if (s.trip.members.size < 2) InviteBanner(onInvite = {
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, vm.inviteText())
+                }
+                context.startActivity(Intent.createChooser(send, "Invite travel partner"))
+            })
             TabRow(selectedTabIndex = tab) {
                 Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Expenses") })
                 Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Balance") })
@@ -135,9 +162,9 @@ fun TripScreen(
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
             title = { Text("Delete trip?") },
-            text = { Text("This permanently deletes the trip and all its expenses.") },
+            text = { Text("This permanently deletes the trip and all its expenses, on both phones.") },
             confirmButton = {
-                TextButton(onClick = { confirmDelete = false; vm.deleteTrip(onBack) }) { Text("Delete") }
+                TextButton(onClick = { confirmDelete = false; vm.deleteTrip {} }) { Text("Delete") }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
         )
@@ -145,7 +172,24 @@ fun TripScreen(
 }
 
 @Composable
-private fun ExpenseList(trip: Trip, expenses: List<Expense>, onOpen: (Long) -> Unit) {
+private fun InviteBanner(onInvite: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Only on this phone so far. Invite your travel partner to sync.",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onInvite) { Text("Invite") }
+        }
+    }
+}
+
+@Composable
+private fun ExpenseList(trip: Trip, expenses: List<Expense>, onOpen: (String) -> Unit) {
     if (expenses.isEmpty()) {
         Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
