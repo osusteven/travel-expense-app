@@ -1,82 +1,119 @@
 import "server-only";
-import { createClient, type Client, type Row } from "@libsql/client";
-import { mkdirSync } from "node:fs";
+import { attachDatabasePool } from "@vercel/functions";
+import { Pool, type PoolClient, types } from "pg";
 import { config } from "./config";
 import type { Entry } from "./ledger";
 
 /*
- * Storage is libSQL (SQLite). Locally it's a file (data/ledger.db). In production, point DATABASE_URL at a
- * hosted libSQL database such as Turso, because serverless hosts like Vercel have no persistent disk.
+ * Storage is Postgres: in production the Neon database you add from Vercel's Storage tab, which sets
+ * DATABASE_URL for you. Locally, `vercel env pull .env.local` copies the same setting.
  */
 
-let client: Client | null = null;
+// Return DATE columns as plain "YYYY-MM-DD" strings, not JavaScript Dates (which would shift with time zones).
+types.setTypeParser(types.builtins.DATE, (v) => v);
+// BIGINT comes back as a string; amounts in minor units fit safely in a JS number.
+types.setTypeParser(types.builtins.INT8, (v) => Number(v));
+
+let pool: Pool | null = null;
 let ready: Promise<void> | null = null;
 
-function getClient(): Client {
-  if (!client) {
-    if (config.databaseUrl.startsWith("file:")) {
-      const path = config.databaseUrl.slice("file:".length);
-      const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
-      if (dir) mkdirSync(dir, { recursive: true });
+function getPool(): Pool {
+  if (!pool) {
+    if (!config.databaseUrl) {
+      throw new Error(
+        "No database configured. Add a Neon Postgres database from your Vercel project's Storage tab " +
+          "(it sets DATABASE_URL), or run `vercel env pull .env.local` for local development.",
+      );
     }
-    client = createClient({ url: config.databaseUrl, authToken: config.databaseAuthToken });
+    pool = new Pool({ connectionString: config.databaseUrl, max: 5, idleTimeoutMillis: 5000 });
+    // On Vercel, lets idle connections be closed before a function is suspended.
+    attachDatabasePool(pool);
   }
-  return client;
+  return pool;
 }
 
-async function db(): Promise<Client> {
-  const c = getClient();
-  ready ??= c
-    .batch(
-      [
-        `CREATE TABLE IF NOT EXISTS entries (
-          id TEXT PRIMARY KEY,
-          kind TEXT NOT NULL,
-          date TEXT NOT NULL,
-          description TEXT NOT NULL,
-          amount_minor INTEGER NOT NULL,
-          currency TEXT NOT NULL,
-          rate TEXT NOT NULL,
-          rate_source TEXT NOT NULL,
-          rate_date TEXT,
-          home_amount_minor INTEGER,
-          paid_by TEXT NOT NULL,
-          split TEXT NOT NULL,
-          p1_share_minor INTEGER,
-          notes TEXT NOT NULL DEFAULT '',
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL
-        )`,
-        // Every create/edit/delete is recorded so you can see what changed when reconciling.
-        `CREATE TABLE IF NOT EXISTS entry_log (
-          seq INTEGER PRIMARY KEY AUTOINCREMENT,
-          entry_id TEXT NOT NULL,
-          action TEXT NOT NULL,
-          snapshot TEXT NOT NULL,
-          at TEXT NOT NULL
-        )`,
-        `CREATE INDEX IF NOT EXISTS entry_log_entry ON entry_log(entry_id)`,
-        // Fetched exchange rates are cached so each (currency, date) is only looked up once.
-        `CREATE TABLE IF NOT EXISTS rates (
-          base TEXT NOT NULL,
-          quote TEXT NOT NULL,
-          date TEXT NOT NULL,
-          rate TEXT NOT NULL,
-          rate_date TEXT NOT NULL,
-          fetched_at TEXT NOT NULL,
-          PRIMARY KEY (base, quote, date)
-        )`,
-      ],
-      "write",
-    )
-    .then(() => undefined)
-    .catch((err) => {
-      ready = null;
+const schema = `
+  CREATE TABLE IF NOT EXISTS entries (
+    id UUID PRIMARY KEY,
+    kind TEXT NOT NULL CHECK (kind IN ('expense', 'payment')),
+    date DATE NOT NULL,
+    description TEXT NOT NULL,
+    amount_minor BIGINT NOT NULL,
+    currency CHAR(3) NOT NULL,
+    rate NUMERIC NOT NULL,
+    rate_source TEXT NOT NULL,
+    rate_date DATE,
+    home_amount_minor BIGINT,
+    paid_by TEXT NOT NULL CHECK (paid_by IN ('p1', 'p2')),
+    split TEXT NOT NULL,
+    p1_share_minor BIGINT,
+    notes TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
+  );
+  -- Every create/edit/delete is recorded so you can see what changed when reconciling.
+  CREATE TABLE IF NOT EXISTS entry_log (
+    seq BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    entry_id UUID NOT NULL,
+    action TEXT NOT NULL,
+    snapshot JSONB NOT NULL,
+    at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS entry_log_entry ON entry_log (entry_id);
+  -- Fetched exchange rates are cached so each (currency, date) is only looked up once.
+  CREATE TABLE IF NOT EXISTS rates (
+    base CHAR(3) NOT NULL,
+    quote CHAR(3) NOT NULL,
+    date DATE NOT NULL,
+    rate NUMERIC NOT NULL,
+    rate_date DATE NOT NULL,
+    fetched_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (base, quote, date)
+  );
+`;
+
+/** Creates the tables on first use. The advisory lock stops two cold starts from racing. */
+async function db(): Promise<Pool> {
+  const p = getPool();
+  ready ??= (async () => {
+    const client = await p.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock(727274)");
+      await client.query(schema);
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK").catch(() => undefined);
       throw err;
-    });
+    } finally {
+      client.release();
+    }
+  })().catch((err) => {
+    ready = null;
+    throw err;
+  });
   await ready;
-  return c;
+  return p;
 }
+
+async function inTransaction<T>(fn: (c: PoolClient) => Promise<T>): Promise<T> {
+  const client = await (await db()).connect();
+  try {
+    await client.query("BEGIN");
+    const result = await fn(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+type Row = Record<string, unknown>;
+
+const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v));
 
 function toEntry(r: Row): Entry {
   return {
@@ -94,19 +131,20 @@ function toEntry(r: Row): Entry {
     split: r.split as Entry["split"],
     p1ShareMinor: r.p1_share_minor == null ? null : Number(r.p1_share_minor),
     notes: String(r.notes ?? ""),
-    createdAt: String(r.created_at),
-    updatedAt: String(r.updated_at),
+    createdAt: iso(r.created_at),
+    updatedAt: iso(r.updated_at),
   };
 }
 
 /** All entries, newest transaction first. */
 export async function listEntries(): Promise<Entry[]> {
-  const res = await (await db()).execute("SELECT * FROM entries ORDER BY date DESC, created_at DESC");
+  const res = await (await db()).query("SELECT * FROM entries ORDER BY date DESC, created_at DESC");
   return res.rows.map(toEntry);
 }
 
 export async function getEntry(id: string): Promise<Entry | null> {
-  const res = await (await db()).execute({ sql: "SELECT * FROM entries WHERE id = ?", args: [id] });
+  if (!isUuid(id)) return null;
+  const res = await (await db()).query("SELECT * FROM entries WHERE id = $1", [id]);
   return res.rows[0] ? toEntry(res.rows[0]) : null;
 }
 
@@ -115,46 +153,35 @@ const columns = [
   "home_amount_minor", "paid_by", "split", "p1_share_minor", "notes", "created_at", "updated_at",
 ] as const;
 
-function values(e: Entry) {
-  return [
-    e.id, e.kind, e.date, e.description, e.amountMinor, e.currency, e.rate, e.rateSource, e.rateDate,
-    e.homeAmountMinor, e.paidBy, e.split, e.p1ShareMinor, e.notes, e.createdAt, e.updatedAt,
-  ];
-}
+const upsertSql = `
+  INSERT INTO entries (${columns.join(", ")})
+  VALUES (${columns.map((_, i) => `$${i + 1}`).join(", ")})
+  ON CONFLICT (id) DO UPDATE SET
+  ${columns.filter((c) => c !== "id" && c !== "created_at").map((c) => `${c} = EXCLUDED.${c}`).join(", ")}`;
 
-function logStatement(entryId: string, action: string, snapshot: unknown, at: string) {
-  return {
-    sql: "INSERT INTO entry_log (entry_id, action, snapshot, at) VALUES (?, ?, ?, ?)",
-    args: [entryId, action, JSON.stringify(snapshot), at],
-  };
-}
-
-/** Inserts or replaces an entry and records it in the change log. */
+/** Inserts or updates an entry and records it in the change log, in one transaction. */
 export async function saveEntry(e: Entry, action: "create" | "update"): Promise<void> {
-  const c = await db();
-  await c.batch(
-    [
-      {
-        sql: `INSERT OR REPLACE INTO entries (${columns.join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`,
-        args: values(e),
-      },
-      logStatement(e.id, action, e, e.updatedAt),
-    ],
-    "write",
-  );
+  await inTransaction(async (c) => {
+    await c.query(upsertSql, [
+      e.id, e.kind, e.date, e.description, e.amountMinor, e.currency, e.rate, e.rateSource, e.rateDate,
+      e.homeAmountMinor, e.paidBy, e.split, e.p1ShareMinor, e.notes, e.createdAt, e.updatedAt,
+    ]);
+    await c.query("INSERT INTO entry_log (entry_id, action, snapshot, at) VALUES ($1, $2, $3, $4)", [
+      e.id, action, JSON.stringify(e), e.updatedAt,
+    ]);
+  });
 }
 
 export async function deleteEntry(id: string): Promise<void> {
-  const c = await db();
-  const existing = await getEntry(id);
-  if (!existing) return;
-  await c.batch(
-    [
-      { sql: "DELETE FROM entries WHERE id = ?", args: [id] },
-      logStatement(id, "delete", existing, new Date().toISOString()),
-    ],
-    "write",
-  );
+  if (!isUuid(id)) return;
+  await inTransaction(async (c) => {
+    const res = await c.query("DELETE FROM entries WHERE id = $1 RETURNING *", [id]);
+    if (res.rows[0]) {
+      await c.query("INSERT INTO entry_log (entry_id, action, snapshot) VALUES ($1, 'delete', $2)", [
+        id, JSON.stringify(toEntry(res.rows[0])),
+      ]);
+    }
+  });
 }
 
 export interface LogItem {
@@ -163,42 +190,46 @@ export interface LogItem {
   snapshot: Entry;
 }
 
+const toLog = (r: Row): LogItem => ({
+  action: r.action as LogItem["action"],
+  at: iso(r.at),
+  snapshot: r.snapshot as Entry,
+});
+
 export async function entryHistory(id: string): Promise<LogItem[]> {
-  const res = await (await db()).execute({
-    sql: "SELECT action, at, snapshot FROM entry_log WHERE entry_id = ? ORDER BY seq",
-    args: [id],
-  });
-  return res.rows.map((r) => ({
-    action: r.action as LogItem["action"],
-    at: String(r.at),
-    snapshot: JSON.parse(String(r.snapshot)) as Entry,
-  }));
+  if (!isUuid(id)) return [];
+  const res = await (await db()).query(
+    "SELECT action, at, snapshot FROM entry_log WHERE entry_id = $1 ORDER BY seq",
+    [id],
+  );
+  return res.rows.map(toLog);
 }
 
 /** Deleted entries (most recent first), so a mistaken delete can be seen and re-entered. */
 export async function deletedEntries(): Promise<LogItem[]> {
-  const res = await (await db()).execute(
+  const res = await (await db()).query(
     "SELECT action, at, snapshot FROM entry_log WHERE action = 'delete' ORDER BY seq DESC",
   );
-  return res.rows.map((r) => ({
-    action: "delete",
-    at: String(r.at),
-    snapshot: JSON.parse(String(r.snapshot)) as Entry,
-  }));
+  return res.rows.map(toLog);
 }
 
 export async function cachedRate(base: string, quote: string, date: string) {
-  const res = await (await db()).execute({
-    sql: "SELECT rate, rate_date FROM rates WHERE base = ? AND quote = ? AND date = ?",
-    args: [base, quote, date],
-  });
+  const res = await (await db()).query(
+    "SELECT rate::text AS rate, rate_date FROM rates WHERE base = $1 AND quote = $2 AND date = $3",
+    [base, quote, date],
+  );
   const r = res.rows[0];
   return r ? { rate: String(r.rate), rateDate: String(r.rate_date) } : null;
 }
 
 export async function storeRate(base: string, quote: string, date: string, rate: string, rateDate: string) {
-  await (await db()).execute({
-    sql: "INSERT OR REPLACE INTO rates (base, quote, date, rate, rate_date, fetched_at) VALUES (?, ?, ?, ?, ?, ?)",
-    args: [base, quote, date, rate, rateDate, new Date().toISOString()],
-  });
+  await (await db()).query(
+    `INSERT INTO rates (base, quote, date, rate, rate_date) VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (base, quote, date) DO UPDATE SET rate = EXCLUDED.rate, rate_date = EXCLUDED.rate_date, fetched_at = now()`,
+    [base, quote, date, rate, rateDate],
+  );
+}
+
+function isUuid(id: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 }

@@ -12,6 +12,7 @@ import { requireAuth } from "@/lib/session";
 
 export default async function Home({ searchParams }: PageProps<"/">) {
   await requireAuth();
+  if (!config.databaseUrl) return <SetupNeeded />;
   const { saved } = await searchParams;
   const home = config.homeCurrency;
   const [entries, deleted] = await Promise.all([listEntries(), deletedEntries()]);
@@ -170,5 +171,25 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
       <dd className="font-medium tabular-nums">{value}</dd>
       {sub && <dd className="text-xs tabular-nums text-muted">{sub}</dd>}
     </div>
+  );
+}
+
+function SetupNeeded() {
+  return (
+    <main className="mx-auto w-full max-w-xl px-4 py-16">
+      <div className="card space-y-3">
+        <h1 className="text-xl font-semibold">Almost there: connect a database</h1>
+        <ol className="list-decimal space-y-2 pl-5 text-sm">
+          <li>
+            In your Vercel project, open <b>Storage → Create Database → Neon (Postgres)</b>, choose the free plan, and
+            connect it to this project. That sets <code>DATABASE_URL</code>.
+          </li>
+          <li>
+            Redeploy: <b>Deployments → ⋯ → Redeploy</b>.
+          </li>
+        </ol>
+        <p className="text-sm text-muted">The tables are created automatically the first time the app runs.</p>
+      </div>
+    </main>
   );
 }

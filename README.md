@@ -64,33 +64,34 @@ You suggested a password field whose answer is "Steven". That's a sensible way t
 This is a speed bump, not real security. Anyone who knows or guesses the password gets in. That's fine for a shared
 travel ledger, but use something less guessable than a name if the URL will be shared widely.
 
+## Deploying on Vercel (free for this size)
+
+1. **Import the repository** at [vercel.com/new](https://vercel.com/new) and deploy. The first deploy shows a
+   "No database configured" error until step 2 is done.
+2. **Add the database.** In the Vercel project, open **Storage → Create Database → Neon (Postgres)**, pick the free
+   plan and a region near you, and connect it to the project. This sets `DATABASE_URL` automatically.
+3. **Set the other settings** under **Settings → Environment Variables**:
+   - `APP_PASSWORD`
+   - `PERSON_1_NAME` and `PERSON_2_NAME`
+   - `HOME_CURRENCY`
+4. **Redeploy** (Deployments → ⋯ → Redeploy) so the new settings take effect. Tables are created automatically on
+   first use.
+
+Neon backs the database up for you. The JSON export also works as your own backup.
+
 ## Running it locally
 
 ```bash
 npm install
-cp .env.example .env.local   # then edit names, password and home currency
-npm run dev                  # http://localhost:3000
+npx vercel link                # connect this folder to the Vercel project
+npx vercel env pull .env.local # copies DATABASE_URL and the other settings
+npm run dev                    # http://localhost:3000
 ```
 
-Locally, data is stored in `data/ledger.db` (a SQLite file).
+This uses the same database as the live site. To keep test data separate, create a Neon branch and point
+`DATABASE_URL` at it, or use any local Postgres.
 
 Other commands: `npm test` (unit tests for the money and balance logic), `npm run lint`, `npm run build`.
-
-## Deploying (Vercel + Turso, both free for this size)
-
-Vercel has no permanent disk, so production needs a hosted database. Turso is hosted SQLite and works with the
-same code.
-
-1. Create a database at [turso.tech](https://turso.tech), then copy its URL (`libsql://…`) and create an auth token.
-2. Import this repository in [Vercel](https://vercel.com/new).
-3. In the project's environment variables, set:
-   - `DATABASE_URL` and `DATABASE_AUTH_TOKEN` (from Turso)
-   - `APP_PASSWORD`
-   - `PERSON_1_NAME` and `PERSON_2_NAME`
-   - `HOME_CURRENCY`
-4. Deploy. Tables are created automatically on first use.
-
-It runs on any Node.js host too. On a server with a disk you can keep the default `file:` database and skip Turso.
 
 ## Settings
 
@@ -99,6 +100,5 @@ It runs on any Node.js host too. On a server with a disk you can keep the defaul
 | `APP_PASSWORD` | `Steven` | Shared password (case-insensitive) |
 | `PERSON_1_NAME` / `PERSON_2_NAME` | `Steven` / `Partner` | Names shown in the app |
 | `HOME_CURRENCY` | `USD` | Currency balances are settled in |
-| `DATABASE_URL` | `file:data/ledger.db` | libSQL/SQLite database |
-| `DATABASE_AUTH_TOKEN` | | Token for a hosted database |
+| `DATABASE_URL` | set by Vercel | Postgres connection string (Neon) |
 | `RATES_API_BASE` | `https://api.frankfurter.dev/v1` | Exchange-rate service (ECB data, no key needed) |

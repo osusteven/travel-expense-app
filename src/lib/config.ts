@@ -9,8 +9,8 @@ export const config = {
    * so don't change it once entries exist.
    */
   homeCurrency: (process.env.HOME_CURRENCY ?? "USD").toUpperCase(),
-  databaseUrl: process.env.DATABASE_URL ?? "file:data/ledger.db",
-  databaseAuthToken: process.env.DATABASE_AUTH_TOKEN,
+  /** Postgres connection string. Vercel's Neon integration sets DATABASE_URL (and POSTGRES_URL). */
+  databaseUrl: process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? "",
   /** Frankfurter (European Central Bank reference rates). Free, no API key. */
   ratesApiBase: process.env.RATES_API_BASE ?? "https://api.frankfurter.dev/v1",
 };
