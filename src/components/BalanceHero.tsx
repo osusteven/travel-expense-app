@@ -3,12 +3,12 @@ import { type PersonKey, type Summary, settlement } from "@/lib/ledger";
 import { formatMoney, plainAmount } from "@/lib/money";
 import type { Profiles } from "@/lib/settings";
 import { Avatar } from "./Avatar";
-import { MoneyFlow } from "./MoneyFlow";
+import { FlowArrow, MoneyRain } from "./MoneyFlow";
 import { SettleUp } from "./SettleUp";
 
 /**
- * The balance at the top of a trip. Whoever owes is on the left in their color, whoever is owed is on the right
- * in theirs, so the sides (and the gradient) swap when the balance flips.
+ * The balance at the top of a trip. Person 1 is always on the left (red) and person 2 always on the right (blue);
+ * only the arrow and the floating dollar signs change direction, pointing toward whoever is owed.
  */
 export function BalanceHero({
   tripId,
@@ -28,11 +28,11 @@ export function BalanceHero({
   hasEntries: boolean;
 }) {
   const owed = settlement(summary.balance);
-  const left: PersonKey = owed ? owed.from : "p1";
-  const right: PersonKey = owed ? owed.to : "p2";
-  const background = owed
-    ? `linear-gradient(110deg, color-mix(in oklab, var(--${left}) 88%, black), color-mix(in oklab, var(--${left}) 55%, var(--${right})) 50%, color-mix(in oklab, var(--${right}) 88%, black))`
-    : "linear-gradient(110deg, var(--p1), var(--hero-via), var(--p2))";
+  const left: PersonKey = "p1";
+  const right: PersonKey = "p2";
+  // Money moves toward whoever is owed: rightward if person 2 is owed, leftward if person 1 is.
+  const direction = owed?.to === "p1" ? "left" : "right";
+  const role = (p: PersonKey) => (!owed ? "" : owed.from === p ? "owes" : "is owed");
 
   const person = (p: PersonKey, role: string) => (
     <div className="flex w-24 flex-col items-center gap-1.5 sm:w-28">
@@ -45,11 +45,11 @@ export function BalanceHero({
   return (
     <section
       aria-label="Balance"
-      className="relative overflow-hidden rounded-3xl p-5 text-center text-white shadow-xl shadow-black/15 sm:p-6"
-      style={{ background }}
+      className="hero relative overflow-hidden rounded-3xl p-5 text-center text-white shadow-xl shadow-black/15 sm:p-6"
     >
       <span aria-hidden className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
       <span aria-hidden className="absolute -bottom-12 -left-8 h-36 w-36 rounded-full bg-white/10" />
+      {owed && <MoneyRain direction={direction} />}
       {/* Amount across the top; below it the two people, with the money flowing from one to the other. */}
       <div className="relative">
         {owed ? (
@@ -64,9 +64,9 @@ export function BalanceHero({
         )}
       </div>
       <div className="relative mt-4 flex items-start justify-between gap-1">
-        {person(left, owed ? "owes" : "")}
-        <div className="min-w-0 flex-1 self-start pt-5">{owed && <MoneyFlow />}</div>
-        {person(right, owed ? "is owed" : "")}
+        {person(left, role(left))}
+        <div className="min-w-0 flex-1 self-start pt-5">{owed && <FlowArrow direction={direction} />}</div>
+        {person(right, role(right))}
       </div>
       {owed && (
         <div className="relative mt-4">

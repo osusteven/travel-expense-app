@@ -10,11 +10,13 @@ import { Statistics } from "@/components/Statistics";
 import { config, people } from "@/lib/config";
 import { homeFirst, toOptions } from "@/lib/currencyOptions";
 import { deletedEntries, getTrip, listEntries } from "@/lib/db";
-import { settlement, summarize, tripPath } from "@/lib/ledger";
+import { summarize, tripPath } from "@/lib/ledger";
 import { formatMoney } from "@/lib/money";
 import { requireAuth } from "@/lib/session";
 import { currentTripId, defaultCurrency, defaultPayer, enabledCurrencies, profiles } from "@/lib/settings";
 import { computeStats, historyItems } from "@/lib/stats";
+import { cookies } from "next/headers";
+import { HISTORY_SORT_COOKIE, parseHistorySort } from "@/lib/historySort";
 
 export default async function TripPage({ params, searchParams }: PageProps<"/trips/[id]">) {
   await requireAuth();
@@ -33,7 +35,6 @@ export default async function TripPage({ params, searchParams }: PageProps<"/tri
     currentTripId(),
   ]);
   const summary = summarize(entries, home);
-  const owed = settlement(summary.balance);
   // Only entries that are still gone (not restored or re-imported), each listed once.
   const liveIds = new Set(entries.map((e) => e.id));
   const gone = [...new Map(deleted.filter((d) => !liveIds.has(d.snapshot.id)).map((d) => [d.snapshot.id, d])).values()];
@@ -42,7 +43,7 @@ export default async function TripPage({ params, searchParams }: PageProps<"/tri
 
   return (
     <>
-      <Header active="trips" left={owed?.from ?? "p1"} right={owed?.to ?? "p2"} />
+      <Header active="trips" />
       <main className="mx-auto w-full max-w-3xl space-y-8 px-4 py-6">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <Link href="/trips" className="text-sm font-medium text-accent hover:underline">
@@ -114,7 +115,13 @@ export default async function TripPage({ params, searchParams }: PageProps<"/tri
               </>
             )}
           </div>
-          <History items={historyItems(entries, home)} people={people} home={home} photos={{ p1: prof.p1.photo, p2: prof.p2.photo }} />
+          <History
+            items={historyItems(entries, home)}
+            people={people}
+            home={home}
+            photos={{ p1: prof.p1.photo, p2: prof.p2.photo }}
+            initialSort={parseHistorySort((await cookies()).get(HISTORY_SORT_COOKIE)?.value)}
+          />
           {gone.length > 0 && (
             <details className="card mt-4 text-sm">
               <summary className="cursor-pointer font-semibold">Deleted entries ({gone.length})</summary>

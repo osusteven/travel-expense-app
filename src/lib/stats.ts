@@ -25,6 +25,7 @@ export interface HistoryItem {
   /** Running balance after this entry. */
   balanceAfter: number;
   updated: boolean;
+  createdAt: string;
 }
 
 export function historyItems(entries: Entry[], home: string): HistoryItem[] {
@@ -53,6 +54,7 @@ export function historyItems(entries: Entry[], home: string): HistoryItem[] {
       delta: fx.balanceDelta,
       balanceAfter: summary.runningBalance.get(e.id) ?? 0,
       updated: e.updatedAt !== e.createdAt,
+      createdAt: e.createdAt,
     };
   });
 }

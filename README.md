@@ -7,7 +7,7 @@ and see who owes whom.
 |---|---|---|
 | ![Trips](docs/screenshots/1_trips.png) | ![Trip](docs/screenshots/2_dashboard.png) | ![Settle up](docs/screenshots/settle_up.png) |
 
-| Who owes whom (sides swap) | | Payment in History |
+| Who owes whom (money flows toward whoever is owed) | | Payment in History |
 |---|---|---|
 | ![McAlonis owes](docs/screenshots/hero_mcalonis_owes.png) | ![Browning owes](docs/screenshots/hero_browning_owes.png) | ![Payment](docs/screenshots/history_payment.png) |
 
@@ -20,10 +20,10 @@ Also: [settings](docs/screenshots/5_settings.png) · [people](docs/screenshots/s
   lists every trip with its dates, countries, total and whether it's settled. The *current* trip (shared by both
   of you) opens by default. Past trips stay viewable, and you can rename or delete them.
 - **People.** Upload a photo for each person in **Settings → People**. It's shrunk to a small round icon and used in
-  the balance at the top, History and Statistics. Person 1 is red and person 2 is blue. In the balance (and the
-  header bar above it), whoever owes is on the left and whoever is owed is on the right, so the sides and colors swap
-  when the balance flips. Green dollar coins stream from whoever owes toward whoever is owed (they stand still if
-  the device has "reduce motion" on). Each person's total sits on their side, with the trip total in the middle.
+  the balance at the top, History and Statistics. Person 1 is always on the left in red and person 2 always on the
+  right in blue; nothing moves when the balance changes. The arrow between you points toward whoever is owed, and
+  green dollar signs drift across the block in that direction (hidden if the device has "reduce motion" on). Each
+  person's total sits on their side, with the trip total in the middle.
 - **Settle up.** Record a payment with the amount (prefilled with the full balance), date, method (Venmo, cash,
   Zelle, PayPal, bank transfer or other) and a note or reference. History shows it with **✓ Balance: $0.00** when
   it settles the trip. With a Venmo username saved in Settings, **Open Venmo** opens Venmo with the recipient, amount
@@ -46,6 +46,8 @@ Also: [settings](docs/screenshots/5_settings.png) · [people](docs/screenshots/s
   by country, with hover details and a table view), and what each person paid compared with their share.
 - **Settings.** Choose which currencies appear in the form. Each currency is shown with its country and flag. The
   form remembers the last currency and the last "Paid by" person used on each device.
+- **History sort.** Newest or oldest first (grouped by day), highest or lowest amount, or A–Z. Each device
+  remembers its own choice.
 - **Appearance.** System, Light or Dark, chosen separately on each phone or computer. Settings marks every section
   **Shared** (applies to both of you: people, currencies, backups, import) or **This device** (appearance; the form
   also remembers each device's last currency and payer).

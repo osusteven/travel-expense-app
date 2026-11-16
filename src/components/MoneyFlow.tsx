@@ -1,31 +1,66 @@
-/**
- * Green dollar signs streaming left to right, from whoever owes (always on the left) to whoever is owed.
- * Purely decorative: the text above already says who owes whom.
- */
-export function MoneyFlow() {
+type Direction = "left" | "right";
+
+/** Arrow between the two people, pointing toward whoever is owed. */
+export function FlowArrow({ direction }: { direction: Direction }) {
   return (
-    <div aria-hidden className="money-flow relative -mx-2 h-9">
-      {/* faint track */}
-      <span className="absolute inset-x-2 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-white/0 via-white/45 to-white/0" />
-      {/* Phones have a short track, so fewer coins there. */}
-      <Coins count={3} className="sm:hidden" />
-      <Coins count={5} className="hidden sm:block" />
-      {/* arrowhead at the receiving end */}
-      <span className="absolute right-0 top-1/2 -translate-y-1/2 text-lg leading-none text-white/70">›</span>
+    <div aria-hidden className="relative mx-1 h-9">
+      <span className="absolute inset-x-1 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-white/60" />
+      <span
+        className={`absolute top-1/2 -translate-y-1/2 text-2xl font-bold leading-none text-white/90 ${
+          direction === "right" ? "right-0" : "left-0"
+        }`}
+      >
+        {direction === "right" ? "›" : "‹"}
+      </span>
     </div>
   );
 }
 
-function Coins({ count, className }: { count: number; className: string }) {
-  const duration = 3.2;
+// Fixed pseudo-random layout, so the server and browser draw the same thing.
+function seeded(seed: number) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const DROPS = (() => {
+  const rand = seeded(20261116);
+  return Array.from({ length: 16 }, () => {
+    const duration = 4 + rand() * 5; // 4–9 s to cross
+    return {
+      top: 4 + rand() * 88, // % down the block
+      size: 0.85 + rand() * 1.15, // rem
+      duration,
+      delay: -rand() * duration, // already mid-flight on load
+      drift: (rand() - 0.5) * 30, // px of up/down wobble
+      opacity: 0.55 + rand() * 0.4,
+    };
+  });
+})();
+
+/**
+ * Green dollar signs drifting sideways across the whole balance block, like rain blown toward whoever is owed.
+ * Decorative only (the text says who owes whom); hidden when the device asks for reduced motion.
+ */
+export function MoneyRain({ direction }: { direction: Direction }) {
   return (
-    <div className={`absolute inset-0 ${className}`}>
-      {Array.from({ length: count }, (_, i) => (
+    <div aria-hidden className="money-rain pointer-events-none absolute inset-0 overflow-hidden">
+      {DROPS.map((d, i) => (
         <span
           key={i}
-          className="money-coin"
-          // Negative delays start the coins already spread along the track.
-          style={{ animationDelay: `${-(i * duration) / count}s`, ["--rest" as string]: `${(100 / count) * (i + 0.5)}%` }}
+          className="money-drop"
+          style={{
+            top: `${d.top}%`,
+            fontSize: `${d.size}rem`,
+            opacity: d.opacity,
+            animationDuration: `${d.duration}s`,
+            animationDelay: `${d.delay}s`,
+            animationDirection: direction === "right" ? "normal" : "reverse",
+            ["--drift" as string]: `${d.drift}px`,
+          }}
         >
           $
         </span>

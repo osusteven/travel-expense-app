@@ -7,6 +7,7 @@ import { slotColor } from "@/lib/currencyData";
 import { type PersonKey, methodLabel, other } from "@/lib/ledger";
 import { formatMoney, formatRate } from "@/lib/money";
 import type { HistoryItem } from "@/lib/stats";
+import { HISTORY_SORTS, HISTORY_SORT_COOKIE, type HistorySort, groupsByDay } from "@/lib/historySort";
 import { Avatar } from "./Avatar";
 import { Flag } from "./Flag";
 
@@ -23,7 +24,42 @@ const dayHeading = (d: string) =>
 
 export type Photos = Partial<Record<PersonKey, string>>;
 
-export function History({ items, people, home, photos = {} }: { items: HistoryItem[]; people: People; home: string; photos?: Photos }) {
+/** Remembers the sort on this device (a cookie, so the page also loads already sorted). */
+function saveSort(value: HistorySort) {
+  document.cookie = `${HISTORY_SORT_COOKIE}=${value}; path=/; max-age=${60 * 60 * 24 * 365 * 2}; samesite=lax`;
+}
+
+function sortItems(list: HistoryItem[], sort: HistorySort): HistoryItem[] {
+  const byNewest = (a: HistoryItem, b: HistoryItem) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt);
+  const sorted = [...list];
+  switch (sort) {
+    case "newest":
+      return sorted.sort(byNewest);
+    case "oldest":
+      return sorted.sort((a, b) => -byNewest(a, b));
+    case "amount-desc":
+      return sorted.sort((a, b) => b.home - a.home || byNewest(a, b));
+    case "amount-asc":
+      return sorted.sort((a, b) => a.home - b.home || byNewest(a, b));
+    case "az":
+      return sorted.sort((a, b) => a.description.localeCompare(b.description, "en", { sensitivity: "base" }) || byNewest(a, b));
+  }
+}
+
+export function History({
+  items,
+  people,
+  home,
+  photos = {},
+  initialSort = "newest",
+}: {
+  items: HistoryItem[];
+  people: People;
+  home: string;
+  photos?: Photos;
+  initialSort?: HistorySort;
+}) {
+  const [sort, setSort] = useState<HistorySort>(initialSort);
   const [query, setQuery] = useState("");
   const [person, setPerson] = useState<PersonKey | "all">("all");
   const [currency, setCurrency] = useState<string>("all");
@@ -37,7 +73,7 @@ export function History({ items, people, home, photos = {} }: { items: HistoryIt
   }, [items]);
 
   const q = query.trim().toLowerCase();
-  const shown = items.filter(
+  const shown = sortItems(items, sort).filter(
     (i) =>
       (person === "all" || i.paidBy === person) &&
       (currency === "all" || i.currency === currency) &&
@@ -93,16 +129,42 @@ export function History({ items, people, home, photos = {} }: { items: HistoryIt
             ))}
           </div>
         )}
-        {filtering && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-muted">
-            {shown.length} of {items.length} entries · {formatMoney(shownSpent, home)} spent
+            {filtering ? `${shown.length} of ${items.length} entries · ${formatMoney(shownSpent, home)} spent` : ""}
           </p>
-        )}
+          <label className="flex items-center gap-2 text-xs font-medium text-muted">
+            Sort
+            <select
+              value={sort}
+              onChange={(e) => {
+                const value = e.target.value as HistorySort;
+                setSort(value);
+                saveSort(value);
+              }}
+              className="rounded-lg border border-line bg-card px-2 py-1.5 text-sm text-foreground"
+            >
+              {(Object.keys(HISTORY_SORTS) as HistorySort[]).map((k) => (
+                <option key={k} value={k}>
+                  {HISTORY_SORTS[k]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       {shown.length === 0 && <p className="card text-sm text-muted">No entries match these filters.</p>}
 
-      {[...days.entries()].map(([date, list]) => {
+      {!groupsByDay(sort) && (
+        <ul className="space-y-2">
+          {shown.map((i) => (
+            <HistoryCard key={i.id} item={i} people={people} home={home} photos={photos} showDate />
+          ))}
+        </ul>
+      )}
+
+      {groupsByDay(sort) && [...days.entries()].map(([date, list]) => {
         const dayTotal = list.filter((i) => i.kind === "expense").reduce((a, i) => a + i.home, 0);
         return (
           <section key={date} aria-label={dayHeading(date)}>
@@ -122,7 +184,20 @@ export function History({ items, people, home, photos = {} }: { items: HistoryIt
   );
 }
 
-function HistoryCard({ item: i, people, home, photos }: { item: HistoryItem; people: People; home: string; photos: Photos }) {
+function HistoryCard({
+  item: i,
+  people,
+  home,
+  photos,
+  showDate = false,
+}: {
+  item: HistoryItem;
+  people: People;
+  home: string;
+  photos: Photos;
+  /** Shown when the list isn't grouped by day. */
+  showDate?: boolean;
+}) {
   const foreign = i.currency !== home;
   const isPayment = i.kind === "payment";
   const color = slotColor(i.slot);
@@ -164,6 +239,7 @@ function HistoryCard({ item: i, people, home, photos }: { item: HistoryItem; peo
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{i.description}</p>
+          {showDate && <p className="text-xs font-medium text-muted">{dayHeading(i.date)}</p>}
           <div className="mt-1 flex flex-wrap gap-1">
             <span className="chip border border-line">
               <Avatar person={i.paidBy} name={people[i.paidBy]} photo={photos[i.paidBy]} size={14} />
