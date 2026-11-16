@@ -1,7 +1,21 @@
 import Link from "next/link";
 import { logout } from "@/app/login/actions";
+import type { PersonKey } from "@/lib/ledger";
 
-export function Header({ active }: { active?: "trips" | "settings" }) {
+/**
+ * The top bar uses the two people's colors (person 1 red, person 2 blue). On a trip it matches the balance below:
+ * whoever owes on the left, whoever is owed on the right, so it swaps when the balance flips.
+ */
+export function Header({
+  active,
+  left = "p1",
+  right = "p2",
+}: {
+  active?: "trips" | "settings";
+  left?: PersonKey;
+  right?: PersonKey;
+}) {
+  const background = `linear-gradient(110deg, color-mix(in oklab, var(--${left}) 85%, black), color-mix(in oklab, var(--${left}) 50%, var(--${right})) 50%, color-mix(in oklab, var(--${right}) 85%, black))`;
   const link = (href: string, label: string, on: boolean) => (
     <Link
       href={href}
@@ -11,7 +25,7 @@ export function Header({ active }: { active?: "trips" | "settings" }) {
     </Link>
   );
   return (
-    <header className="hero text-white shadow-lg shadow-accent/20">
+    <header className="text-white shadow-lg shadow-black/15" style={{ background }}>
       <div className="mx-auto flex max-w-3xl items-center gap-1 px-4 py-3">
         <Link href="/" className="mr-auto flex items-center gap-2 text-lg font-extrabold tracking-tight">
           <span aria-hidden className="grid h-8 w-8 place-items-center rounded-xl bg-white/20 text-base">✈︎</span>

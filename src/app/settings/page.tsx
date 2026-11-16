@@ -2,7 +2,7 @@ import { Header } from "@/components/Header";
 import { backupsConfigured, listBackups } from "@/lib/backup";
 import { config, people } from "@/lib/config";
 import { ALL_CURRENCIES, POPULAR } from "@/lib/currencyData";
-import { toOptions } from "@/lib/currencyOptions";
+import { homeFirst, toOptions } from "@/lib/currencyOptions";
 import { listEntries, recentBackupRuns } from "@/lib/db";
 import { requireAuth } from "@/lib/session";
 import { enabledCurrencies, profiles } from "@/lib/settings";
@@ -54,7 +54,7 @@ export default async function SettingsPage() {
             <span aria-hidden>💱</span> Currencies
           </h2>
           <p className="text-sm text-muted">Choose which currencies appear in the form.</p>
-          <CurrencySettings all={toOptions(ALL_CURRENCIES)} enabled={enabled} popular={POPULAR} home={home} inUse={inUse} />
+          <CurrencySettings all={toOptions(homeFirst(home, ALL_CURRENCIES))} enabled={enabled} popular={POPULAR} home={home} inUse={inUse} />
         </section>
 
         <section className="card space-y-4">

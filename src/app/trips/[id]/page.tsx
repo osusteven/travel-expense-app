@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { makeCurrentTripAction } from "@/app/actions";
 import { BalanceHero } from "@/components/BalanceHero";
 import { EntryForm } from "@/components/EntryForm";
@@ -8,9 +8,9 @@ import { Header } from "@/components/Header";
 import { History } from "@/components/History";
 import { Statistics } from "@/components/Statistics";
 import { config, people } from "@/lib/config";
-import { toOptions } from "@/lib/currencyOptions";
+import { homeFirst, toOptions } from "@/lib/currencyOptions";
 import { deletedEntries, getTrip, listEntries } from "@/lib/db";
-import { summarize } from "@/lib/ledger";
+import { settlement, summarize, tripPath } from "@/lib/ledger";
 import { formatMoney } from "@/lib/money";
 import { requireAuth } from "@/lib/session";
 import { currentTripId, defaultCurrency, enabledCurrencies, profiles } from "@/lib/settings";
@@ -22,6 +22,8 @@ export default async function TripPage({ params, searchParams }: PageProps<"/tri
   const { saved, settled } = await searchParams;
   const trip = await getTrip(id);
   if (!trip) notFound();
+  // Old links used the trip's id; send them to its address.
+  if (id !== trip.slug) redirect(tripPath(trip));
   const home = config.homeCurrency;
   const [entries, deleted, enabled, prof, current] = await Promise.all([
     listEntries(trip.id),
@@ -31,15 +33,16 @@ export default async function TripPage({ params, searchParams }: PageProps<"/tri
     currentTripId(),
   ]);
   const summary = summarize(entries, home);
+  const owed = settlement(summary.balance);
   // Only entries that are still gone (not restored or re-imported), each listed once.
   const liveIds = new Set(entries.map((e) => e.id));
   const gone = [...new Map(deleted.filter((d) => !liveIds.has(d.snapshot.id)).map((d) => [d.snapshot.id, d])).values()];
-  // Currencies in alphabetical order; the form starts with the one this device used last.
-  const currencies = [...new Set([home, ...enabled])].sort();
+  // Home currency first, then the rest alphabetically; the form starts with the one this device used last.
+  const currencies = homeFirst(home, enabled);
 
   return (
     <>
-      <Header active="trips" />
+      <Header active="trips" left={owed?.from ?? "p1"} right={owed?.to ?? "p2"} />
       <main className="mx-auto w-full max-w-3xl space-y-8 px-4 py-6">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <Link href="/trips" className="text-sm font-medium text-accent hover:underline">
@@ -56,7 +59,7 @@ export default async function TripPage({ params, searchParams }: PageProps<"/tri
               </button>
             </form>
           )}
-          <Link href={`/trips/${trip.id}/edit`} className="btn-secondary !py-1 text-xs">
+          <Link href={`${tripPath(trip)}/edit`} className="btn-secondary !py-1 text-xs">
             Rename / delete
           </Link>
         </div>

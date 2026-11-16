@@ -65,8 +65,27 @@ export interface Entry {
 export interface Trip {
   id: string;
   name: string;
+  /** The trip's web address: /trips/<slug>, made from its name. */
+  slug: string;
   createdAt: string;
 }
+
+/** "Japan & Korea 2026" → "japan-korea-2026". */
+export function slugify(name: string): string {
+  const s = name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/&/g, " ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+    .replace(/-+$/g, "");
+  // "new" is the address of the New trip page.
+  return !s ? "trip" : s === "new" ? "new-trip" : s;
+}
+
+export const tripPath = (t: Pick<Trip, "slug">) => `/trips/${t.slug}`;
 
 export interface EntryEffect {
   /** Value of the entry in home currency (minor units). */

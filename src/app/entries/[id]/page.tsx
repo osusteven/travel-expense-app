@@ -5,10 +5,10 @@ import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { EntryForm } from "@/components/EntryForm";
 import { Header } from "@/components/Header";
 import { config, people } from "@/lib/config";
-import { toOptions } from "@/lib/currencyOptions";
+import { homeFirst, toOptions } from "@/lib/currencyOptions";
 import { enabledCurrencies } from "@/lib/settings";
-import { entryHistory, getEntry } from "@/lib/db";
-import type { Entry } from "@/lib/ledger";
+import { entryHistory, getEntry, getTrip } from "@/lib/db";
+import { type Entry, tripPath } from "@/lib/ledger";
 import { formatMoney, formatRate } from "@/lib/money";
 import { requireAuth } from "@/lib/session";
 
@@ -17,14 +17,15 @@ export default async function EditEntryPage({ params }: PageProps<"/entries/[id]
   const { id } = await params;
   const [entry, history, enabled] = await Promise.all([getEntry(id), entryHistory(id), enabledCurrencies()]);
   if (!entry) notFound();
+  const trip = await getTrip(entry.tripId);
   const home = config.homeCurrency;
 
   return (
     <>
       <Header active="trips" />
       <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6">
-        <Link href={`/trips/${entry.tripId}`} className="text-sm text-accent">
-          ← Back to the trip
+        <Link href={trip ? tripPath(trip) : "/trips"} className="text-sm text-accent">
+          ← Back to {trip?.name ?? "trips"}
         </Link>
         <section className="card">
           <h1 className="mb-4 text-lg font-semibold">Edit entry</h1>
@@ -32,7 +33,7 @@ export default async function EditEntryPage({ params }: PageProps<"/entries/[id]
             people={people}
             homeCurrency={home}
             // Keep the entry's own currency available even if it's been unchecked in Settings.
-            currencies={toOptions([...new Set([entry.currency, home, ...enabled])].sort())}
+            currencies={toOptions(homeFirst(home, [entry.currency, ...enabled]))}
             defaultCurrency={entry.currency}
             entry={entry}
           />

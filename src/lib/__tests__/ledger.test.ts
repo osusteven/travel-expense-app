@@ -164,7 +164,7 @@ describe("import", () => {
     entry({ id: "0b1e7d7c-8f4e-4a59-9a39-5f6d1f0c2a11", currency: "JPY", amountMinor: 3400, rate: "0.0067", rateSource: "ecb", notes: "ramen" }),
     entry({ id: "4f7a2a3e-1b2c-4d5e-8f90-123456789abc", kind: "payment", split: "other", paidBy: "p2", createdAt: "2026-10-02T00:00:00Z", updatedAt: "2026-10-02T00:00:00Z" }),
   ];
-  const trip = { id: TRIP, name: "Japan", createdAt: "2026-10-01T00:00:00Z" };
+  const trip = { id: TRIP, name: "Japan", slug: "japan", createdAt: "2026-10-01T00:00:00Z" };
   it("round-trips a JSON export exactly (trips, entries, settings)", () => {
     const profiles = { p1: { venmo: "steven-b" }, p2: { photo: "data:image/jpeg;base64,AAAA" } };
     const text = JSON.stringify(
@@ -206,9 +206,9 @@ describe("trips", () => {
       entry({ tripId: TRIP, amountMinor: 10000 }),
       entry({ tripId: OTHER, amountMinor: 4000, paidBy: "p2" }),
     ];
-    const csv = toCsv(entries, "USD", { p1: "Browning", p2: "McAlanosi" }, [
-      { id: TRIP, name: "Japan", createdAt: "" },
-      { id: OTHER, name: "Lisbon", createdAt: "" },
+    const csv = toCsv(entries, "USD", { p1: "Browning", p2: "McAlnois" }, [
+      { id: TRIP, name: "Japan", slug: "japan", createdAt: "" },
+      { id: OTHER, name: "Lisbon", slug: "lisbon", createdAt: "" },
     ]);
     const lines = csv.trim().split("\r\n");
     expect(lines[0]).toContain("trip,date");
@@ -220,5 +220,20 @@ describe("trips", () => {
     const owed = settlement(summarize(e, "USD").balance)!;
     e.push(entry({ kind: "payment", amountMinor: owed.amount, paidBy: owed.from, split: "other", method: "venmo" }));
     expect(summarize(e, "USD").balance).toBe(0);
+  });
+});
+
+import { slugify } from "../ledger";
+import { homeFirst } from "../currencyOptions";
+
+describe("trip addresses and currency order", () => {
+  it("makes web-friendly trip addresses", () => {
+    expect(slugify("Japan & Korea 2026")).toBe("japan-korea-2026");
+    expect(slugify("  Côte d'Azur!! ")).toBe("cote-d-azur");
+    expect(slugify("New")).toBe("new-trip");
+    expect(slugify("🎉")).toBe("trip");
+  });
+  it("lists the home currency first, then alphabetically", () => {
+    expect(homeFirst("USD", ["THB", "EUR", "USD", "JPY"])).toEqual(["USD", "EUR", "JPY", "THB"]);
   });
 });

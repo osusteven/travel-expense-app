@@ -2,7 +2,7 @@ import "server-only";
 import { attachDatabasePool } from "@vercel/functions";
 import { Pool, type PoolClient, types } from "pg";
 import { config } from "./config";
-import type { Entry, Trip } from "./ledger";
+import { type Entry, type Trip, slugify } from "./ledger";
 
 /*
  * Storage is Postgres: in production the Neon database you add from Vercel's Storage tab, which sets
@@ -95,6 +95,9 @@ const schema = `
   ALTER TABLE entries ADD COLUMN IF NOT EXISTS trip_id UUID;
   ALTER TABLE entries ADD COLUMN IF NOT EXISTS method TEXT;
   CREATE INDEX IF NOT EXISTS entries_trip ON entries (trip_id);
+  -- Trip web addresses (/trips/japan-korea).
+  ALTER TABLE trips ADD COLUMN IF NOT EXISTS slug TEXT;
+  CREATE UNIQUE INDEX IF NOT EXISTS trips_slug ON trips (slug);
 `;
 
 /** Entries from before trips existed are moved into a first trip, which becomes the current one. */
@@ -122,6 +125,11 @@ async function db(): Promise<Pool> {
       await client.query("SELECT pg_advisory_xact_lock(727274)");
       await client.query(schema);
       await client.query(migrateToTrips);
+      // Give trips created before addresses existed a slug.
+      const unnamed = await client.query("SELECT id, name FROM trips WHERE slug IS NULL ORDER BY created_at");
+      for (const t of unnamed.rows) {
+        await client.query("UPDATE trips SET slug = $2 WHERE id = $1", [t.id, await uniqueSlug(client, String(t.name))]);
+      }
       await client.query("COMMIT");
     } catch (err) {
       await client.query("ROLLBACK").catch(() => undefined);
@@ -326,9 +334,9 @@ export async function importData(
     }
     for (const t of trips) {
       await c.query(
-        `INSERT INTO trips (id, name, created_at) VALUES ($1, $2, $3)
-         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name`,
-        [t.id, t.name, t.createdAt],
+        `INSERT INTO trips (id, name, slug, created_at) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, slug = EXCLUDED.slug`,
+        [t.id, t.name, await uniqueSlug(c, t.name, t.id), t.createdAt],
       );
     }
     let added = 0;
@@ -348,28 +356,44 @@ export async function importData(
 
 // ---- Trips ----
 
-const toTrip = (r: Row): Trip => ({ id: String(r.id), name: String(r.name), createdAt: iso(r.created_at) });
+const toTrip = (r: Row): Trip => ({ id: String(r.id), name: String(r.name), slug: String(r.slug), createdAt: iso(r.created_at) });
+
+/** A slug from the name that no other trip uses ("japan", "japan-2", …). */
+async function uniqueSlug(c: Pool | PoolClient, name: string, exceptId?: string): Promise<string> {
+  const base = slugify(name);
+  for (let n = 1; ; n++) {
+    const candidate = n === 1 ? base : `${base}-${n}`;
+    const res = await c.query("SELECT 1 FROM trips WHERE slug = $1 AND id IS DISTINCT FROM $2::uuid", [candidate, exceptId ?? null]);
+    if (!res.rowCount) return candidate;
+  }
+}
 
 export async function listTrips(): Promise<Trip[]> {
   const res = await (await db()).query("SELECT * FROM trips ORDER BY created_at DESC");
   return res.rows.map(toTrip);
 }
 
-export async function getTrip(id: string): Promise<Trip | null> {
-  if (!isUuid(id)) return null;
-  const res = await (await db()).query("SELECT * FROM trips WHERE id = $1", [id]);
+/** Finds a trip by its address (slug) or its id. */
+export async function getTrip(idOrSlug: string): Promise<Trip | null> {
+  const res = isUuid(idOrSlug)
+    ? await (await db()).query("SELECT * FROM trips WHERE id = $1", [idOrSlug])
+    : await (await db()).query("SELECT * FROM trips WHERE slug = $1", [idOrSlug.toLowerCase()]);
   return res.rows[0] ? toTrip(res.rows[0]) : null;
 }
 
 export async function createTrip(name: string): Promise<Trip> {
-  const trip: Trip = { id: crypto.randomUUID(), name, createdAt: new Date().toISOString() };
-  await (await db()).query("INSERT INTO trips (id, name, created_at) VALUES ($1, $2, $3)", [trip.id, trip.name, trip.createdAt]);
+  const p = await db();
+  const trip: Trip = { id: crypto.randomUUID(), name, slug: await uniqueSlug(p, name), createdAt: new Date().toISOString() };
+  await p.query("INSERT INTO trips (id, name, slug, created_at) VALUES ($1, $2, $3, $4)", [trip.id, trip.name, trip.slug, trip.createdAt]);
   return trip;
 }
 
-export async function renameTrip(id: string, name: string): Promise<void> {
-  if (!isUuid(id)) return;
-  await (await db()).query("UPDATE trips SET name = $2 WHERE id = $1", [id, name]);
+/** Renames a trip; its address changes to match the new name. Returns the updated trip. */
+export async function renameTrip(id: string, name: string): Promise<Trip | null> {
+  if (!isUuid(id)) return null;
+  const p = await db();
+  await p.query("UPDATE trips SET name = $2, slug = $3 WHERE id = $1", [id, name, await uniqueSlug(p, name, id)]);
+  return getTrip(id);
 }
 
 /** Deletes a trip and its entries (each entry is logged, so it can still be seen under Deleted entries). */

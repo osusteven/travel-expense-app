@@ -4,7 +4,7 @@ import { Flag } from "@/components/Flag";
 import { Header } from "@/components/Header";
 import { config, people } from "@/lib/config";
 import { listEntries, listTrips } from "@/lib/db";
-import { chronological, settlement, summarize } from "@/lib/ledger";
+import { chronological, settlement, summarize, tripPath } from "@/lib/ledger";
 import { formatMoney } from "@/lib/money";
 import { requireAuth } from "@/lib/session";
 import { currentTripId, profiles } from "@/lib/settings";
@@ -57,7 +57,7 @@ export default async function TripsPage() {
           {rows.map((r) => (
             <li key={r.trip.id}>
               <Link
-                href={`/trips/${r.trip.id}`}
+                href={tripPath(r.trip)}
                 className="card flex flex-wrap items-center gap-4 transition hover:-translate-y-px hover:shadow-lg"
               >
                 <div className="min-w-0 flex-1">

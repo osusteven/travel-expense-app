@@ -83,17 +83,20 @@ export function BalanceHero({
         </div>
       )}
       {summary.totalSpent > 0 && (
+        // Each person's total sits on their side; the trip total is in the middle.
         <dl className="relative mt-5 grid grid-cols-3 gap-2 rounded-2xl bg-black/15 p-3 text-sm backdrop-blur">
+          <div>
+            <dt className="text-white/75">{people[left]} paid</dt>
+            <dd className="font-bold tabular-nums">{formatMoney(summary.paid[left], home)}</dd>
+          </div>
           <div>
             <dt className="text-white/75">Trip total</dt>
             <dd className="font-bold tabular-nums">{formatMoney(summary.totalSpent, home)}</dd>
           </div>
-          {(["p1", "p2"] as const).map((p) => (
-            <div key={p}>
-              <dt className="text-white/75">{people[p]} paid</dt>
-              <dd className="font-bold tabular-nums">{formatMoney(summary.paid[p], home)}</dd>
-            </div>
-          ))}
+          <div>
+            <dt className="text-white/75">{people[right]} paid</dt>
+            <dd className="font-bold tabular-nums">{formatMoney(summary.paid[right], home)}</dd>
+          </div>
         </dl>
       )}
     </section>

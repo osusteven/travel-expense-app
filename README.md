@@ -9,18 +9,20 @@ and see who owes whom.
 
 | Who owes whom (sides swap) | | Payment in History |
 |---|---|---|
-| ![McAlanosi owes](docs/screenshots/hero_mcalanosi_owes.png) | ![Browning owes](docs/screenshots/hero_browning_owes.png) | ![Payment](docs/screenshots/history_payment.png) |
+| ![McAlnois owes](docs/screenshots/hero_mcalnois_owes.png) | ![Browning owes](docs/screenshots/hero_browning_owes.png) | ![Payment](docs/screenshots/history_payment.png) |
 
 Also: [settings](docs/screenshots/5_settings.png) · [people](docs/screenshots/settings_people.png) · [phone](docs/screenshots/7_mobile.png) · [dark mode](docs/screenshots/8_dark.png)
 
 ## What it does
 
-- **Trips.** Each trip has its own entries, balance, history and statistics, and is settled on its own. **Trips**
+- **Trips.** Each trip has its own entries, balance, history and statistics, and is settled on its own. Each trip
+  has its own address made from its name, e.g. `/trips/japan-korea-2026` (renaming changes it). **Trips**
   lists every trip with its dates, countries, total and whether it's settled. The *current* trip (shared by both
   of you) opens by default. Past trips stay viewable, and you can rename or delete them.
 - **People.** Upload a photo for each person in **Settings → People**. It's shrunk to a small round icon and used in
-  the balance at the top, History and Statistics. Person 1 is red and person 2 is blue. In the balance, whoever owes
-  is on the left and whoever is owed is on the right, so the sides and colors swap when the balance flips.
+  the balance at the top, History and Statistics. Person 1 is red and person 2 is blue. In the balance (and the
+  header bar above it), whoever owes is on the left and whoever is owed is on the right, so the sides and colors swap
+  when the balance flips. Each person's total sits on their side, with the trip total in the middle.
 - **Settle up.** Record a payment with the amount (prefilled with the full balance), date, method (Venmo, cash,
   Zelle, PayPal, bank transfer or other) and a note or reference. History shows it with **✓ Balance: $0.00** when
   it settles the trip. With a Venmo username saved in Settings, **Open Venmo** opens Venmo with the recipient, amount

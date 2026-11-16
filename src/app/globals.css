@@ -106,8 +106,14 @@ body {
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-card px-3 py-2 text-sm font-medium transition hover:border-accent/50 hover:bg-subtle;
   }
+  /* Person 1's color to person 2's color (red to blue) */
   .hero {
-    background: linear-gradient(120deg, var(--hero-from), var(--hero-via) 55%, var(--hero-to));
+    background: linear-gradient(
+      110deg,
+      color-mix(in oklab, var(--p1) 85%, black),
+      color-mix(in oklab, var(--p1) 50%, var(--p2)) 50%,
+      color-mix(in oklab, var(--p2) 85%, black)
+    );
   }
   .section-title {
     @apply flex items-center gap-2 text-lg font-bold tracking-tight;

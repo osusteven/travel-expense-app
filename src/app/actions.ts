@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { config } from "@/lib/config";
 import { createTrip, deleteEntry, deleteTrip, getEntry, getTrip, listTrips, renameTrip, saveEntry } from "@/lib/db";
-import { type Entry, PAYMENT_METHODS, type PaymentMethod } from "@/lib/ledger";
+import { type Entry, PAYMENT_METHODS, type PaymentMethod, tripPath } from "@/lib/ledger";
 import { parseDecimal, toMinor } from "@/lib/money";
 import { requireAuth } from "@/lib/session";
 import { LAST_CURRENCY_COOKIE, currentTripId, setCurrentTrip } from "@/lib/settings";
@@ -52,7 +52,8 @@ export async function saveEntryAction(_prev: SaveState, form: FormData): Promise
     });
   }
   revalidatePath("/", "layout");
-  redirect(id ? `/trips/${tripId}#entry-${id}` : `/trips/${tripId}?saved=1`);
+  const path = tripPath((await getTrip(tripId)) ?? { slug: tripId });
+  redirect(id ? `${path}#entry-${id}` : `${path}?saved=1`);
 }
 
 export async function deleteEntryAction(form: FormData) {
@@ -61,7 +62,7 @@ export async function deleteEntryAction(form: FormData) {
   if (!entry) redirect("/");
   await deleteEntry(entry.id);
   revalidatePath("/", "layout");
-  redirect(`/trips/${entry.tripId}`);
+  redirect(tripPath((await getTrip(entry.tripId)) ?? { slug: entry.tripId }));
 }
 
 export type SettleState = { error?: string };
@@ -108,7 +109,7 @@ export async function settleUpAction(_prev: SettleState, form: FormData): Promis
   };
   await saveEntry(entry, "create");
   revalidatePath("/", "layout");
-  redirect(`/trips/${trip.id}?settled=1`);
+  redirect(`${tripPath(trip)}?settled=1`);
 }
 
 // ---- Trips ----
@@ -122,7 +123,7 @@ export async function createTripAction(_prev: TripState, form: FormData): Promis
   const trip = await createTrip(name);
   await setCurrentTrip(trip.id);
   revalidatePath("/", "layout");
-  redirect(`/trips/${trip.id}`);
+  redirect(tripPath(trip));
 }
 
 export async function renameTripAction(_prev: TripState, form: FormData): Promise<TripState> {
@@ -130,9 +131,10 @@ export async function renameTripAction(_prev: TripState, form: FormData): Promis
   const id = String(form.get("id") ?? "");
   const name = String(form.get("name") ?? "").trim().slice(0, 100);
   if (!name) return { error: "Give the trip a name." };
-  await renameTrip(id, name);
+  const trip = await renameTrip(id, name);
+  if (!trip) return { error: "This trip no longer exists." };
   revalidatePath("/", "layout");
-  redirect(`/trips/${id}`);
+  redirect(tripPath(trip));
 }
 
 /** Makes a trip the one new entries go into by default (shared by both people). */

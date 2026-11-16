@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isKnownCurrency } from "./currencyData";
-import { type Entry, PAYMENT_METHODS, type Trip } from "./ledger";
+import { type Entry, PAYMENT_METHODS, type Trip, slugify } from "./ledger";
 
 const entrySchema = z.object({
   id: z.uuid(),
@@ -24,7 +24,13 @@ const entrySchema = z.object({
   updatedAt: z.string().min(1),
 });
 
-const tripSchema = z.object({ id: z.uuid(), name: z.string().trim().min(1).max(100), createdAt: z.string().min(1) });
+const tripSchema = z.object({
+  id: z.uuid(),
+  name: z.string().trim().min(1).max(100),
+  createdAt: z.string().min(1),
+  // Assigned again on import (must be unique), so older files without one are fine.
+  slug: z.string().optional(),
+});
 
 const profileSchema = z.object({
   photo: z.string().startsWith("data:image/").max(400_000).optional(),
@@ -73,7 +79,7 @@ export function parseImport(text: string, expectedHome: string): ParsedImport {
         "Set HOME_CURRENCY to match before importing.",
     );
   }
-  const trips: Trip[] = [...(file.data.trips ?? [])];
+  const trips: Trip[] = (file.data.trips ?? []).map((t) => ({ ...t, slug: t.slug ?? slugify(t.name) }));
   const tripIds = new Set(trips.map((t) => t.id));
   // Entries without a trip (files from before trips existed) go into one "Imported" trip.
   let importTrip: Trip | null = null;
@@ -81,7 +87,8 @@ export function parseImport(text: string, expectedHome: string): ParsedImport {
     if (id && tripIds.has(id)) return id;
     if (id) throw new Error("The file refers to a trip that isn't in it.");
     if (!importTrip) {
-      importTrip = { id: crypto.randomUUID(), name: `Imported ${new Date().toISOString().slice(0, 10)}`, createdAt: new Date().toISOString() };
+      const name = `Imported ${new Date().toISOString().slice(0, 10)}`;
+      importTrip = { id: crypto.randomUUID(), name, slug: slugify(name), createdAt: new Date().toISOString() };
       trips.push(importTrip);
     }
     return importTrip.id;

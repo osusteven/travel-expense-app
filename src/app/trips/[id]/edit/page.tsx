@@ -4,6 +4,7 @@ import { deleteTripAction } from "@/app/actions";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { Header } from "@/components/Header";
 import { getTrip, listEntries } from "@/lib/db";
+import { tripPath } from "@/lib/ledger";
 import { requireAuth } from "@/lib/session";
 import { RenameTripForm } from "../../TripForms";
 
@@ -17,7 +18,7 @@ export default async function EditTripPage({ params }: PageProps<"/trips/[id]/ed
     <>
       <Header active="trips" />
       <main className="mx-auto w-full max-w-xl space-y-6 px-4 py-6">
-        <Link href={`/trips/${trip.id}`} className="text-sm font-medium text-accent hover:underline">
+        <Link href={tripPath(trip)} className="text-sm font-medium text-accent hover:underline">
           ← Back to {trip.name}
         </Link>
         <section className="card">

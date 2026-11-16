@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { config } from "@/lib/config";
 import { getTrip, listTrips } from "@/lib/db";
+import { tripPath } from "@/lib/ledger";
 import { requireAuth } from "@/lib/session";
 import { currentTripId } from "@/lib/settings";
 
@@ -10,7 +11,7 @@ export default async function Home() {
   if (!config.databaseUrl) return <SetupNeeded />;
   const id = await currentTripId();
   const trip = (id && (await getTrip(id))) || (await listTrips())[0];
-  redirect(trip ? `/trips/${trip.id}` : "/trips/new");
+  redirect(trip ? tripPath(trip) : "/trips/new");
 }
 
 function SetupNeeded() {
