@@ -1,6 +1,6 @@
 import Decimal from "decimal.js";
 import { z } from "zod";
-import type { Entry } from "./ledger";
+import { type Entry, PAYMENT_METHODS } from "./ledger";
 import { isValidCurrency, parseDecimal, toMinor } from "./money";
 
 export type FieldErrors = Partial<Record<string, string>>;
@@ -20,9 +20,10 @@ const raw = z.object({
   rateDate: z.string().optional().default(""),
   homeAmount: z.string().optional().default(""),
   notes: z.string().trim().max(1000).optional().default(""),
+  method: z.enum(PAYMENT_METHODS).or(z.literal("")).optional().default(""),
 });
 
-export type EntryFields = Omit<Entry, "id" | "createdAt" | "updatedAt">;
+export type EntryFields = Omit<Entry, "id" | "tripId" | "createdAt" | "updatedAt">;
 
 /** Validates submitted form fields. Returns either the entry fields or per-field error messages. */
 export function parseEntryForm(
@@ -102,6 +103,7 @@ export function parseEntryForm(
       split: f.kind === "payment" ? "other" : f.split,
       p1ShareMinor,
       notes: f.notes,
+      method: f.kind === "payment" && f.method ? f.method : null,
     },
   };
 }

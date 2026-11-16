@@ -3,14 +3,28 @@
 A small Next.js app for two people (Steven and a travel partner) to record shared expenses in any currency
 and see who owes whom.
 
-| Ledger | History | Statistics | Settings |
-|---|---|---|---|
-| ![Ledger](docs/screenshots/2_dashboard.png) | ![History](docs/screenshots/3_history.png) | ![Statistics](docs/screenshots/4_statistics.png) | ![Settings](docs/screenshots/5_settings.png) |
+| Trips | A trip | Settle up |
+|---|---|---|
+| ![Trips](docs/screenshots/1_trips.png) | ![Trip](docs/screenshots/2_dashboard.png) | ![Settle up](docs/screenshots/settle_up.png) |
 
-Also: [phone](docs/screenshots/7_mobile.png) · [dark mode](docs/screenshots/8_dark.png) · [edit + change history](docs/screenshots/6_edit.png)
+| Who owes whom (sides swap) | | Payment in History |
+|---|---|---|
+| ![McAlanosi owes](docs/screenshots/hero_mcalanosi_owes.png) | ![Browning owes](docs/screenshots/hero_browning_owes.png) | ![Payment](docs/screenshots/history_payment.png) |
+
+Also: [settings](docs/screenshots/5_settings.png) · [people](docs/screenshots/settings_people.png) · [phone](docs/screenshots/7_mobile.png) · [dark mode](docs/screenshots/8_dark.png)
 
 ## What it does
 
+- **Trips.** Each trip has its own entries, balance, history and statistics, and is settled on its own. **Trips**
+  lists every trip with its dates, countries, total and whether it's settled. The *current* trip (shared by both
+  of you) opens by default. Past trips stay viewable, and you can rename or delete them.
+- **People.** Upload a photo for each person in **Settings → People**. It's shrunk to a small round icon and used in
+  the balance at the top, History and Statistics. Person 1 is red and person 2 is blue. In the balance, whoever owes
+  is on the left and whoever is owed is on the right, so the sides and colors swap when the balance flips.
+- **Settle up.** Record a payment with the amount (prefilled with the full balance), date, method (Venmo, cash,
+  Zelle, PayPal, bank transfer or other) and a note or reference. History shows it with **✓ Balance: $0.00** when
+  it settles the trip. With a Venmo username saved in Settings, **Open Venmo** opens Venmo with the recipient, amount
+  and note filled in. Venmo can't tell the app a payment went through, so tap **Record payment** after paying.
 - **One form for everything.** Each entry has a description, date, amount and currency, who paid, and how it's split:
   - 50/50
   - custom amounts

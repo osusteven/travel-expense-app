@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { logout } from "@/app/login/actions";
 
-export function Header({ active }: { active?: "home" | "settings" }) {
+export function Header({ active }: { active?: "trips" | "settings" }) {
   const link = (href: string, label: string, on: boolean) => (
     <Link
       href={href}
@@ -17,7 +17,7 @@ export function Header({ active }: { active?: "home" | "settings" }) {
           <span aria-hidden className="grid h-8 w-8 place-items-center rounded-xl bg-white/20 text-base">✈︎</span>
           Travel Ledger
         </Link>
-        {link("/", "Ledger", active === "home")}
+        {link("/trips", "Trips", active === "trips")}
         {link("/settings", "Settings", active === "settings")}
         <form action={logout}>
           <button type="submit" className="rounded-lg px-3 py-1.5 text-sm font-medium text-white/80 hover:bg-white/15 hover:text-white">

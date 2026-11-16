@@ -2,7 +2,8 @@ import "server-only";
 import { cookies } from "next/headers";
 import { config } from "./config";
 import { POPULAR, isKnownCurrency } from "./currencyData";
-import { getSetting } from "./db";
+import { getSetting, setSetting } from "./db";
+import type { PersonKey } from "./ledger";
 
 export const LAST_CURRENCY_COOKIE = "ledger_last_currency";
 
@@ -17,4 +18,34 @@ export async function enabledCurrencies(): Promise<string[]> {
 export async function defaultCurrency(enabled: string[]): Promise<string> {
   const last = (await cookies()).get(LAST_CURRENCY_COOKIE)?.value;
   return last && enabled.includes(last) ? last : config.homeCurrency;
+}
+
+// ---- Trips ----
+
+/** The trip both people are currently adding to (shared, stored in the database). */
+export async function currentTripId(): Promise<string | null> {
+  return getSetting<string>("currentTripId");
+}
+
+export async function setCurrentTrip(id: string): Promise<void> {
+  await setSetting("currentTripId", id);
+}
+
+// ---- People ----
+
+export interface PersonProfile {
+  /** Small square JPEG as a data URL, used as the avatar icon. */
+  photo?: string;
+  /** Venmo username without the @, used to open Venmo with a payment filled in. */
+  venmo?: string;
+}
+export type Profiles = Record<PersonKey, PersonProfile>;
+
+export async function profiles(): Promise<Profiles> {
+  const saved = await getSetting<Partial<Profiles>>("profiles");
+  return { p1: saved?.p1 ?? {}, p2: saved?.p2 ?? {} };
+}
+
+export async function saveProfiles(value: Profiles): Promise<void> {
+  await setSetting("profiles", value);
 }

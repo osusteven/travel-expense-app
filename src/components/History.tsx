@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { People } from "@/lib/config";
 import { slotColor } from "@/lib/currencyData";
-import { type PersonKey, other } from "@/lib/ledger";
+import { type PersonKey, methodLabel, other } from "@/lib/ledger";
 import { formatMoney, formatRate } from "@/lib/money";
 import type { HistoryItem } from "@/lib/stats";
+import { Avatar } from "./Avatar";
 import { Flag } from "./Flag";
 
 type KindFilter = "all" | "expense" | "payment";
@@ -20,7 +21,9 @@ const dayHeading = (d: string) =>
     timeZone: "UTC",
   });
 
-export function History({ items, people, home }: { items: HistoryItem[]; people: People; home: string }) {
+export type Photos = Partial<Record<PersonKey, string>>;
+
+export function History({ items, people, home, photos = {} }: { items: HistoryItem[]; people: People; home: string; photos?: Photos }) {
   const [query, setQuery] = useState("");
   const [person, setPerson] = useState<PersonKey | "all">("all");
   const [currency, setCurrency] = useState<string>("all");
@@ -68,7 +71,7 @@ export function History({ items, people, home }: { items: HistoryItem[]; people:
           </FilterChip>
           {(["p1", "p2"] as const).map((p) => (
             <FilterChip key={p} on={person === p} onClick={() => setPerson(person === p ? "all" : p)}>
-              <span className="h-2 w-2 rounded-full" style={{ background: `var(--${p})` }} />
+              <Avatar person={p} name={name(p)} photo={photos[p]} size={16} />
               Paid by {name(p)}
             </FilterChip>
           ))}
@@ -109,7 +112,7 @@ export function History({ items, people, home }: { items: HistoryItem[]; people:
             </div>
             <ul className="space-y-2">
               {list.map((i) => (
-                <HistoryCard key={i.id} item={i} people={people} home={home} />
+                <HistoryCard key={i.id} item={i} people={people} home={home} photos={photos} />
               ))}
             </ul>
           </section>
@@ -119,7 +122,7 @@ export function History({ items, people, home }: { items: HistoryItem[]; people:
   );
 }
 
-function HistoryCard({ item: i, people, home }: { item: HistoryItem; people: People; home: string }) {
+function HistoryCard({ item: i, people, home, photos }: { item: HistoryItem; people: People; home: string; photos: Photos }) {
   const foreign = i.currency !== home;
   const isPayment = i.kind === "payment";
   const color = slotColor(i.slot);
@@ -153,16 +156,23 @@ function HistoryCard({ item: i, people, home }: { item: HistoryItem; people: Peo
           className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg"
           style={{ background: `color-mix(in oklab, ${color} 16%, transparent)` }}
         >
-          {isPayment ? "💸" : <Flag currency={i.currency} />}
+          {isPayment ? (
+            <Avatar person={i.paidBy} name={people[i.paidBy]} photo={photos[i.paidBy]} size={40} />
+          ) : (
+            <Flag currency={i.currency} />
+          )}
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{i.description}</p>
           <div className="mt-1 flex flex-wrap gap-1">
             <span className="chip border border-line">
-              <span className="h-2 w-2 rounded-full" style={{ background: `var(--${i.paidBy})` }} />
+              <Avatar person={i.paidBy} name={people[i.paidBy]} photo={photos[i.paidBy]} size={14} />
               {isPayment ? `From ${people[i.paidBy]}` : `Paid by ${people[i.paidBy]}`}
             </span>
             <span className="chip bg-subtle">{splitText}</span>
+            {isPayment && i.method && (
+              <span className="chip bg-[#008cff]/12 font-semibold text-[#0070cc] dark:text-[#5cb3ff]">{methodLabel[i.method]}</span>
+            )}
             <span className="chip" style={{ background: `color-mix(in oklab, ${color} 14%, transparent)` }}>
               <Flag currency={i.currency} /> {i.country}
             </span>
@@ -175,7 +185,13 @@ function HistoryCard({ item: i, people, home }: { item: HistoryItem; people: Peo
           <p className="text-base font-bold tabular-nums">{formatMoney(i.amountMinor, i.currency)}</p>
           {foreign && <p className="text-xs tabular-nums text-muted">≈ {formatMoney(i.home, home)}</p>}
           <p className="mt-1 text-xs font-medium">{effect}</p>
-          <p className="text-[11px] text-muted">{balance}</p>
+          {isPayment && i.balanceAfter === 0 ? (
+            <p className="mt-0.5 inline-block rounded-full bg-good/12 px-2 py-0.5 text-[11px] font-bold text-good">
+              ✓ Balance: {formatMoney(0, home)}
+            </p>
+          ) : (
+            <p className="text-[11px] text-muted">{balance}</p>
+          )}
         </div>
       </Link>
     </li>

@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef, useState, useSyncExternalStore } fro
 import { saveEntryAction, type SaveState } from "@/app/actions";
 import type { People } from "@/lib/config";
 import { CurrencyPicker, type CurrencyOption } from "./CurrencyPicker";
-import { type Entry, type EntryKind, type PersonKey, type SplitMode, entryEffect, other } from "@/lib/ledger";
+import { type Entry, type EntryKind, PAYMENT_METHODS, type PersonKey, type SplitMode, entryEffect, methodLabel, other } from "@/lib/ledger";
 import { formatMoney, formatRate, parseDecimal, plainAmount, toMinor } from "@/lib/money";
 
 type RateState = {
@@ -24,12 +24,15 @@ function localToday(): string {
 }
 
 export function EntryForm({
+  tripId,
   people,
   homeCurrency,
   currencies,
   defaultCurrency,
   entry,
 }: {
+  /** The trip new entries are added to. */
+  tripId?: string;
   people: People;
   homeCurrency: string;
   /** Currencies for the dropdown (the enabled ones from Settings), most useful first. */
@@ -45,6 +48,7 @@ export function EntryForm({
   // All fields are controlled: React resets uncontrolled fields after a form action, even when it returns errors.
   const [description, setDescription] = useState(entry?.description ?? "");
   const [notes, setNotes] = useState(entry?.notes ?? "");
+  const [method, setMethod] = useState<string>(entry?.method ?? "");
   const [pickedDate, setDate] = useState(entry?.date ?? "");
   // New entries default to today in the browser's time zone (the server only knows UTC).
   const today = useSyncExternalStore(noSubscribe, localToday, utcToday);
@@ -118,7 +122,7 @@ export function EntryForm({
     }
     const share = parseDecimal(p1Share);
     const fake: Entry = {
-      id: "", kind, date, description: "", amountMinor, currency, rate: r, rateSource: "manual", rateDate: null,
+      id: "", tripId: "", method: null, kind, date, description: "", amountMinor, currency, rate: r, rateSource: "manual", rateDate: null,
       homeAmountMinor, paidBy, split: kind === "payment" ? "other" : split,
       p1ShareMinor: share ? toMinor(share, currency) : 0, notes: "", createdAt: "", updatedAt: "",
     };
@@ -135,6 +139,7 @@ export function EntryForm({
   return (
     <form action={formAction} className="space-y-4" noValidate>
       {entry && <input type="hidden" name="id" value={entry.id} />}
+      {tripId && <input type="hidden" name="tripId" value={tripId} />}
       <input type="hidden" name="kind" value={kind} />
       <input type="hidden" name="paidBy" value={paidBy} />
       <input type="hidden" name="rateSource" value={foreign ? rate.source : "same"} />
@@ -306,7 +311,19 @@ export function EntryForm({
           )}
         </fieldset>
       ) : (
-        <input type="hidden" name="split" value="other" />
+        <>
+          <input type="hidden" name="split" value="other" />
+          <Field label="Paid with">
+            <select name="method" value={method} onChange={(ev) => setMethod(ev.target.value)} className="input">
+              <option value="">Not specified</option>
+              {PAYMENT_METHODS.map((m) => (
+                <option key={m} value={m}>
+                  {methodLabel[m]}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </>
       )}
 
       <Field label="Notes (optional)">

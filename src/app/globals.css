@@ -11,8 +11,9 @@
   --accent: #5b47e0;
   --accent-2: #db2777;
   --accent-3: #f97316;
-  --p1: #4f6fe8;
-  --p2: #d9468f;
+  /* Person colors: person 1 (Browning) red, person 2 (McAlanosi) blue */
+  --p1: #dc3545;
+  --p2: #2563eb;
   --good: #15803d;
   --bad: #c2410c;
   --hero-from: #5b47e0;
@@ -43,8 +44,8 @@
     --accent: #8b7cf6;
     --accent-2: #f472b6;
     --accent-3: #fb923c;
-    --p1: #7d96ff;
-    --p2: #f07ab3;
+    --p1: #f0616f;
+    --p2: #5b8ef5;
     --good: #4ade80;
     --bad: #fb923c;
     --hero-from: #4733c4;

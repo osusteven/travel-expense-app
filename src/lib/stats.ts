@@ -17,6 +17,7 @@ export interface HistoryItem {
   rateDate: string | null;
   paidBy: PersonKey;
   split: Entry["split"];
+  method: Entry["method"];
   home: number;
   share: Record<PersonKey, number>;
   /** Positive: person 2 owes person 1 for this entry. */
@@ -46,6 +47,7 @@ export function historyItems(entries: Entry[], home: string): HistoryItem[] {
       rateDate: e.rateDate,
       paidBy: e.paidBy,
       split: e.split,
+      method: e.method,
       home: fx.home,
       share: fx.share,
       delta: fx.balanceDelta,

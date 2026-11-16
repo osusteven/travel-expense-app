@@ -5,9 +5,10 @@ import { ALL_CURRENCIES, POPULAR } from "@/lib/currencyData";
 import { toOptions } from "@/lib/currencyOptions";
 import { listEntries, recentBackupRuns } from "@/lib/db";
 import { requireAuth } from "@/lib/session";
-import { enabledCurrencies } from "@/lib/settings";
+import { enabledCurrencies, profiles } from "@/lib/settings";
 import { BackupNowButton, ImportForm, RestoreButton } from "./BackupControls";
 import { CurrencySettings } from "./CurrencySettings";
+import { PersonSettings } from "./PersonSettings";
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
@@ -16,7 +17,8 @@ export default async function SettingsPage() {
   await requireAuth();
   const home = config.homeCurrency;
   const configured = backupsConfigured();
-  const [enabled, entries, runs, backups] = await Promise.all([
+  const [prof, enabled, entries, runs, backups] = await Promise.all([
+    profiles(),
     enabledCurrencies(),
     listEntries(),
     recentBackupRuns(8),
@@ -31,6 +33,21 @@ export default async function SettingsPage() {
       <Header active="settings" />
       <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6">
         <h1 className="text-2xl font-extrabold tracking-tight">Settings</h1>
+
+        <section className="card space-y-3">
+          <h2 className="section-title">
+            <span aria-hidden>🧑‍🤝‍🧑</span> People
+          </h2>
+          <p className="text-sm text-muted">
+            Photos become each person&apos;s round icon in the balance, History and Statistics. With a Venmo username,
+            Settle up can open Venmo with the payment filled in.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(["p1", "p2"] as const).map((p) => (
+              <PersonSettings key={p} person={p} name={people[p]} photo={prof[p].photo} venmo={prof[p].venmo} />
+            ))}
+          </div>
+        </section>
 
         <section className="card space-y-3">
           <h2 className="section-title">
@@ -120,10 +137,10 @@ export default async function SettingsPage() {
           </h2>
           <div className="flex flex-wrap gap-2">
             <a href="/api/export?format=csv" className="btn-secondary">
-              Download CSV (spreadsheet)
+              Download CSV (all trips)
             </a>
             <a href="/api/export?format=json" className="btn-secondary">
-              Download JSON (full backup)
+              Download JSON (everything: trips, entries, settings)
             </a>
           </div>
         </section>

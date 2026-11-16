@@ -15,11 +15,25 @@ export type EntryKind = "expense" | "payment";
  */
 export type SplitMode = "equal" | "custom" | "payer" | "other";
 
+/** How a payment between the two people was made. */
+export const PAYMENT_METHODS = ["venmo", "cash", "zelle", "paypal", "bank", "other"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+export const methodLabel: Record<PaymentMethod, string> = {
+  venmo: "Venmo",
+  cash: "Cash",
+  zelle: "Zelle",
+  paypal: "PayPal",
+  bank: "Bank transfer",
+  other: "Other",
+};
+
 /** How the exchange rate was obtained. */
 export type RateSource = "same" | "ecb" | "manual" | "charged";
 
 export interface Entry {
   id: string;
+  /** The trip this entry belongs to. Each trip has its own balance. */
+  tripId: string;
   kind: EntryKind;
   /** ISO date YYYY-MM-DD of the transaction. */
   date: string;
@@ -42,8 +56,16 @@ export interface Entry {
   /** For split = custom: person 1's share in minor units of `currency`. */
   p1ShareMinor: number | null;
   notes: string;
+  /** For payments: how the money was sent. */
+  method: PaymentMethod | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Trip {
+  id: string;
+  name: string;
+  createdAt: string;
 }
 
 export interface EntryEffect {

@@ -2,7 +2,7 @@ import "server-only";
 import { attachDatabasePool } from "@vercel/functions";
 import { Pool, type PoolClient, types } from "pg";
 import { config } from "./config";
-import type { Entry } from "./ledger";
+import type { Entry, Trip } from "./ledger";
 
 /*
  * Storage is Postgres: in production the Neon database you add from Vercel's Storage tab, which sets
@@ -86,6 +86,30 @@ const schema = `
     bytes INTEGER,
     error TEXT
   );
+  CREATE TABLE IF NOT EXISTS trips (
+    id UUID PRIMARY KEY,
+    name TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  -- Added with trips: each entry belongs to a trip; payments can record how they were made.
+  ALTER TABLE entries ADD COLUMN IF NOT EXISTS trip_id UUID;
+  ALTER TABLE entries ADD COLUMN IF NOT EXISTS method TEXT;
+  CREATE INDEX IF NOT EXISTS entries_trip ON entries (trip_id);
+`;
+
+/** Entries from before trips existed are moved into a first trip, which becomes the current one. */
+const migrateToTrips = `
+  WITH orphans AS (SELECT 1 FROM entries WHERE trip_id IS NULL LIMIT 1),
+  new_trip AS (
+    INSERT INTO trips (id, name, created_at)
+    SELECT gen_random_uuid(), 'My first trip', COALESCE((SELECT min(created_at) FROM entries), now())
+    WHERE EXISTS (SELECT 1 FROM orphans)
+    RETURNING id
+  ),
+  moved AS (UPDATE entries SET trip_id = (SELECT id FROM new_trip) WHERE trip_id IS NULL AND EXISTS (SELECT 1 FROM new_trip))
+  INSERT INTO settings (key, value)
+  SELECT 'currentTripId', to_jsonb(id::text) FROM new_trip
+  ON CONFLICT (key) DO NOTHING;
 `;
 
 /** Creates the tables on first use. The advisory lock stops two cold starts from racing. */
@@ -97,6 +121,7 @@ async function db(): Promise<Pool> {
       await client.query("BEGIN");
       await client.query("SELECT pg_advisory_xact_lock(727274)");
       await client.query(schema);
+      await client.query(migrateToTrips);
       await client.query("COMMIT");
     } catch (err) {
       await client.query("ROLLBACK").catch(() => undefined);
@@ -134,6 +159,7 @@ const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v));
 function toEntry(r: Row): Entry {
   return {
     id: String(r.id),
+    tripId: String(r.trip_id),
     kind: r.kind as Entry["kind"],
     date: String(r.date),
     description: String(r.description),
@@ -147,14 +173,17 @@ function toEntry(r: Row): Entry {
     split: r.split as Entry["split"],
     p1ShareMinor: r.p1_share_minor == null ? null : Number(r.p1_share_minor),
     notes: String(r.notes ?? ""),
+    method: r.method == null ? null : (String(r.method) as Entry["method"]),
     createdAt: iso(r.created_at),
     updatedAt: iso(r.updated_at),
   };
 }
 
-/** All entries, newest transaction first. */
-export async function listEntries(): Promise<Entry[]> {
-  const res = await (await db()).query("SELECT * FROM entries ORDER BY date DESC, created_at DESC");
+/** Entries of one trip (or of all trips), newest transaction first. */
+export async function listEntries(tripId?: string): Promise<Entry[]> {
+  const res = tripId
+    ? await (await db()).query("SELECT * FROM entries WHERE trip_id = $1 ORDER BY date DESC, created_at DESC", [tripId])
+    : await (await db()).query("SELECT * FROM entries ORDER BY date DESC, created_at DESC");
   return res.rows.map(toEntry);
 }
 
@@ -167,7 +196,14 @@ export async function getEntry(id: string): Promise<Entry | null> {
 const columns = [
   "id", "kind", "date", "description", "amount_minor", "currency", "rate", "rate_source", "rate_date",
   "home_amount_minor", "paid_by", "split", "p1_share_minor", "notes", "created_at", "updated_at",
+  "trip_id", "method",
 ] as const;
+
+const entryValues = (e: Entry) => [
+  e.id, e.kind, e.date, e.description, e.amountMinor, e.currency, e.rate, e.rateSource, e.rateDate,
+  e.homeAmountMinor, e.paidBy, e.split, e.p1ShareMinor, e.notes, e.createdAt, e.updatedAt,
+  e.tripId, e.method,
+];
 
 const upsertSql = `
   INSERT INTO entries (${columns.join(", ")})
@@ -178,10 +214,7 @@ const upsertSql = `
 /** Inserts or updates an entry and records it in the change log, in one transaction. */
 export async function saveEntry(e: Entry, action: "create" | "update"): Promise<void> {
   await inTransaction(async (c) => {
-    await c.query(upsertSql, [
-      e.id, e.kind, e.date, e.description, e.amountMinor, e.currency, e.rate, e.rateSource, e.rateDate,
-      e.homeAmountMinor, e.paidBy, e.split, e.p1ShareMinor, e.notes, e.createdAt, e.updatedAt,
-    ]);
+    await c.query(upsertSql, entryValues(e));
     await c.query("INSERT INTO entry_log (entry_id, action, snapshot, at) VALUES ($1, $2, $3, $4)", [
       e.id, action, JSON.stringify(e), e.updatedAt,
     ]);
@@ -222,10 +255,13 @@ export async function entryHistory(id: string): Promise<LogItem[]> {
 }
 
 /** Deleted entries (most recent first), so a mistaken delete can be seen and re-entered. */
-export async function deletedEntries(): Promise<LogItem[]> {
-  const res = await (await db()).query(
-    "SELECT action, at, snapshot FROM entry_log WHERE action = 'delete' ORDER BY seq DESC",
-  );
+export async function deletedEntries(tripId?: string): Promise<LogItem[]> {
+  const res = tripId
+    ? await (await db()).query(
+        "SELECT action, at, snapshot FROM entry_log WHERE action = 'delete' AND snapshot->>'tripId' = $1 ORDER BY seq DESC",
+        [tripId],
+      )
+    : await (await db()).query("SELECT action, at, snapshot FROM entry_log WHERE action = 'delete' ORDER BY seq DESC");
   return res.rows.map(toLog);
 }
 
@@ -268,10 +304,14 @@ export async function setSetting(key: string, value: unknown): Promise<void> {
 // ---- Import ----
 
 /**
- * Writes imported entries in one transaction. "merge" adds new entries and overwrites ones with the same id;
- * "replace" first deletes everything (each deletion is logged, so it shows under Deleted entries).
+ * Writes imported trips and entries in one transaction. "merge" adds new ones and overwrites ones with the same id;
+ * "replace" first deletes all entries and trips (each deleted entry is logged, so it shows under Deleted entries).
  */
-export async function importEntries(entries: Entry[], mode: "merge" | "replace"): Promise<{ added: number; updated: number; removed: number }> {
+export async function importData(
+  trips: Trip[],
+  entries: Entry[],
+  mode: "merge" | "replace",
+): Promise<{ added: number; updated: number; removed: number }> {
   return inTransaction(async (c) => {
     let removed = 0;
     if (mode === "replace") {
@@ -282,15 +322,20 @@ export async function importEntries(entries: Entry[], mode: "merge" | "replace")
           r.id, JSON.stringify(toEntry(r)),
         ]);
       }
+      await c.query("DELETE FROM trips");
+    }
+    for (const t of trips) {
+      await c.query(
+        `INSERT INTO trips (id, name, created_at) VALUES ($1, $2, $3)
+         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name`,
+        [t.id, t.name, t.createdAt],
+      );
     }
     let added = 0;
     let updated = 0;
     for (const e of entries) {
       const exists = await c.query("SELECT 1 FROM entries WHERE id = $1", [e.id]);
-      await c.query(upsertSql, [
-        e.id, e.kind, e.date, e.description, e.amountMinor, e.currency, e.rate, e.rateSource, e.rateDate,
-        e.homeAmountMinor, e.paidBy, e.split, e.p1ShareMinor, e.notes, e.createdAt, e.updatedAt,
-      ]);
+      await c.query(upsertSql, entryValues(e));
       await c.query("INSERT INTO entry_log (entry_id, action, snapshot) VALUES ($1, 'import', $2)", [
         e.id, JSON.stringify(e),
       ]);
@@ -298,6 +343,46 @@ export async function importEntries(entries: Entry[], mode: "merge" | "replace")
       else added++;
     }
     return { added, updated, removed };
+  });
+}
+
+// ---- Trips ----
+
+const toTrip = (r: Row): Trip => ({ id: String(r.id), name: String(r.name), createdAt: iso(r.created_at) });
+
+export async function listTrips(): Promise<Trip[]> {
+  const res = await (await db()).query("SELECT * FROM trips ORDER BY created_at DESC");
+  return res.rows.map(toTrip);
+}
+
+export async function getTrip(id: string): Promise<Trip | null> {
+  if (!isUuid(id)) return null;
+  const res = await (await db()).query("SELECT * FROM trips WHERE id = $1", [id]);
+  return res.rows[0] ? toTrip(res.rows[0]) : null;
+}
+
+export async function createTrip(name: string): Promise<Trip> {
+  const trip: Trip = { id: crypto.randomUUID(), name, createdAt: new Date().toISOString() };
+  await (await db()).query("INSERT INTO trips (id, name, created_at) VALUES ($1, $2, $3)", [trip.id, trip.name, trip.createdAt]);
+  return trip;
+}
+
+export async function renameTrip(id: string, name: string): Promise<void> {
+  if (!isUuid(id)) return;
+  await (await db()).query("UPDATE trips SET name = $2 WHERE id = $1", [id, name]);
+}
+
+/** Deletes a trip and its entries (each entry is logged, so it can still be seen under Deleted entries). */
+export async function deleteTrip(id: string): Promise<void> {
+  if (!isUuid(id)) return;
+  await inTransaction(async (c) => {
+    const res = await c.query("DELETE FROM entries WHERE trip_id = $1 RETURNING *", [id]);
+    for (const r of res.rows) {
+      await c.query("INSERT INTO entry_log (entry_id, action, snapshot) VALUES ($1, 'delete', $2)", [
+        r.id, JSON.stringify(toEntry(r)),
+      ]);
+    }
+    await c.query("DELETE FROM trips WHERE id = $1", [id]);
   });
 }
 

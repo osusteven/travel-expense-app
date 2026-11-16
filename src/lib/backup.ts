@@ -1,8 +1,7 @@
 import "server-only";
 import { del, get, list, put } from "@vercel/blob";
-import { config, people } from "./config";
-import { getSetting, listEntries, recordBackupRun } from "./db";
-import { toJson } from "./export";
+import { recordBackupRun } from "./db";
+import { buildFullExport } from "./fullExport";
 
 /*
  * Backups are JSON files (the same format as the JSON export) stored privately in Vercel Blob,
@@ -19,12 +18,8 @@ export function backupsConfigured(): boolean {
 }
 
 export async function buildBackupJson(): Promise<{ body: string; entries: number }> {
-  const [entries, enabledCurrencies] = await Promise.all([
-    listEntries(),
-    getSetting<string[]>("enabledCurrencies"),
-  ]);
-  const data = toJson(entries, config.homeCurrency, people, enabledCurrencies ? { enabledCurrencies } : undefined);
-  return { body: JSON.stringify(data, null, 2), entries: entries.length };
+  const { data, entries } = await buildFullExport();
+  return { body: JSON.stringify(data, null, 2), entries };
 }
 
 /** Writes a backup to Blob storage and records the attempt. Throws if it fails. */

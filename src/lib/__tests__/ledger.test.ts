@@ -6,10 +6,11 @@ import { toCsv } from "../export";
 import Decimal from "decimal.js";
 
 let n = 0;
+const TRIP = "11111111-2222-4333-8444-555555555555";
 function entry(p: Partial<Entry>): Entry {
   n++;
   return {
-    id: `e${n}`, kind: "expense", date: "2026-10-01", description: "x", amountMinor: 10000, currency: "USD",
+    id: `e${n}`, tripId: TRIP, method: null, kind: "expense", date: "2026-10-01", description: "x", amountMinor: 10000, currency: "USD",
     rate: "1", rateSource: "same", rateDate: "2026-10-01", homeAmountMinor: null, paidBy: "p1", split: "equal",
     p1ShareMinor: null, notes: "", createdAt: `2026-10-01T00:00:${String(n).padStart(2, "0")}Z`, updatedAt: "2026-10-01T00:00:00Z", ...p,
   };
@@ -114,7 +115,7 @@ describe("form validation", () => {
 describe("csv export", () => {
   it("escapes and guards against spreadsheet formulas", () => {
     const csv = toCsv([entry({ description: '=HYPERLINK("x"), "quoted"' })], "USD", { p1: "Steven", p2: "Partner" });
-    expect(csv.startsWith("﻿date,type")).toBe(true);
+    expect(csv.startsWith("\uFEFFtrip,date,type")).toBe(true);
     expect(csv).toContain(`"'=HYPERLINK(""x""), ""quoted"""`);
     expect(csv).toContain(",50.00,");
   });
@@ -163,18 +164,61 @@ describe("import", () => {
     entry({ id: "0b1e7d7c-8f4e-4a59-9a39-5f6d1f0c2a11", currency: "JPY", amountMinor: 3400, rate: "0.0067", rateSource: "ecb", notes: "ramen" }),
     entry({ id: "4f7a2a3e-1b2c-4d5e-8f90-123456789abc", kind: "payment", split: "other", paidBy: "p2", createdAt: "2026-10-02T00:00:00Z", updatedAt: "2026-10-02T00:00:00Z" }),
   ];
-  it("round-trips a JSON export exactly", () => {
-    const text = JSON.stringify(exportJson(original, "USD", people, { enabledCurrencies: ["USD", "JPY"] }));
+  const trip = { id: TRIP, name: "Japan", createdAt: "2026-10-01T00:00:00Z" };
+  it("round-trips a JSON export exactly (trips, entries, settings)", () => {
+    const profiles = { p1: { venmo: "steven-b" }, p2: { photo: "data:image/jpeg;base64,AAAA" } };
+    const text = JSON.stringify(
+      exportJson(original, "USD", people, { enabledCurrencies: ["USD", "JPY"], profiles, currentTripId: TRIP }, [trip]),
+    );
     const parsed = parseImport(text, "USD");
     expect(parsed.entries).toEqual(original);
+    expect(parsed.trips).toEqual([trip]);
     expect(parsed.enabledCurrencies).toEqual(["USD", "JPY"]);
+    expect(parsed.profiles).toEqual(profiles);
+    expect(parsed.currentTripId).toBe(TRIP);
+  });
+  it("imports files from before trips existed into one new trip", () => {
+    const v1 = JSON.parse(JSON.stringify(exportJson(original, "USD", people)));
+    delete v1.trips;
+    for (const e of v1.entries) {
+      delete e.tripId;
+      delete e.method;
+    }
+    const parsed = parseImport(JSON.stringify(v1), "USD");
+    expect(parsed.trips).toHaveLength(1);
+    expect(parsed.trips[0].name).toMatch(/^Imported /);
+    expect(parsed.entries.every((e) => e.tripId === parsed.trips[0].id && e.method === null)).toBe(true);
   });
   it("rejects a different home currency, bad JSON, and invalid entries", () => {
-    const text = JSON.stringify(exportJson(original, "USD", people));
+    const text = JSON.stringify(exportJson(original, "USD", people, {}, [trip]));
     expect(() => parseImport(text, "EUR")).toThrow(/home currency/);
     expect(() => parseImport("date,amount\n1,2", "USD")).toThrow(/valid JSON/);
     const bad = JSON.parse(text);
     bad.entries[0].amountMinor = -5;
     expect(() => parseImport(JSON.stringify(bad), "USD")).toThrow(/Entry 1 is invalid/);
+  });
+});
+
+describe("trips", () => {
+  const OTHER = "99999999-2222-4333-8444-555555555555";
+  it("CSV keeps a separate running balance per trip", () => {
+    const entries = [
+      entry({ tripId: TRIP, amountMinor: 10000 }),
+      entry({ tripId: OTHER, amountMinor: 4000, paidBy: "p2" }),
+    ];
+    const csv = toCsv(entries, "USD", { p1: "Browning", p2: "McAlanosi" }, [
+      { id: TRIP, name: "Japan", createdAt: "" },
+      { id: OTHER, name: "Lisbon", createdAt: "" },
+    ]);
+    const lines = csv.trim().split("\r\n");
+    expect(lines[0]).toContain("trip,date");
+    expect(lines.find((l) => l.startsWith("Japan"))).toContain(",50.00,");
+    expect(lines.find((l) => l.startsWith("Lisbon"))).toContain(",-20.00,");
+  });
+  it("a full payment brings a trip to exactly zero", () => {
+    const e = [entry({ amountMinor: 12345 })];
+    const owed = settlement(summarize(e, "USD").balance)!;
+    e.push(entry({ kind: "payment", amountMinor: owed.amount, paidBy: owed.from, split: "other", method: "venmo" }));
+    expect(summarize(e, "USD").balance).toBe(0);
   });
 });

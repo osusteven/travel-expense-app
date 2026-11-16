@@ -2,9 +2,21 @@ import type { People } from "@/lib/config";
 import { slotColor } from "@/lib/currencyData";
 import { formatMoney } from "@/lib/money";
 import type { Stats } from "@/lib/stats";
+import { Avatar } from "./Avatar";
 import { Flag } from "./Flag";
+import type { PersonKey } from "@/lib/ledger";
 
-export function Statistics({ stats: s, people, home }: { stats: Stats; people: People; home: string }) {
+export function Statistics({
+  stats: s,
+  people,
+  home,
+  photos = {},
+}: {
+  stats: Stats;
+  people: People;
+  home: string;
+  photos?: Partial<Record<PersonKey, string>>;
+}) {
   if (s.expenseCount === 0) {
     return <p className="card text-sm text-muted">Statistics appear once you&apos;ve added some expenses.</p>;
   }
@@ -133,9 +145,7 @@ export function Statistics({ stats: s, people, home }: { stats: Stats; people: P
           return (
             <div key={p} className="card">
               <p className="flex items-center gap-2 font-bold">
-                <span className="grid h-7 w-7 place-items-center rounded-full text-xs text-white" style={{ background: `var(--${p})` }}>
-                  {people[p].slice(0, 1).toUpperCase()}
-                </span>
+                <Avatar person={p} name={people[p]} photo={photos[p]} size={32} />
                 {people[p]}
               </p>
               <dl className="mt-2 grid grid-cols-2 gap-2 text-sm">

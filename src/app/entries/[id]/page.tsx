@@ -21,10 +21,10 @@ export default async function EditEntryPage({ params }: PageProps<"/entries/[id]
 
   return (
     <>
-      <Header active="home" />
+      <Header active="trips" />
       <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6">
-        <Link href="/" className="text-sm text-accent">
-          ← Back
+        <Link href={`/trips/${entry.tripId}`} className="text-sm text-accent">
+          ← Back to the trip
         </Link>
         <section className="card">
           <h1 className="mb-4 text-lg font-semibold">Edit entry</h1>
@@ -32,7 +32,7 @@ export default async function EditEntryPage({ params }: PageProps<"/entries/[id]
             people={people}
             homeCurrency={home}
             // Keep the entry's own currency available even if it's been unchecked in Settings.
-            currencies={toOptions([...new Set([entry.currency, ...enabled])])}
+            currencies={toOptions([...new Set([entry.currency, home, ...enabled])].sort())}
             defaultCurrency={entry.currency}
             entry={entry}
           />
