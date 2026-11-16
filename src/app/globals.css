@@ -173,3 +173,67 @@ body {
   border-radius: 2px;
   box-shadow: 0 0 0 1px rgb(0 0 0 / 0.08);
 }
+
+/* Money flowing toward whoever is owed (balance block). */
+.money-coin {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 9999px;
+  background: #fff;
+  color: #15803d;
+  font-weight: 900;
+  font-size: 1rem;
+  line-height: 1;
+  box-shadow:
+    0 0 0 2px #22c55e,
+    0 4px 10px rgb(0 0 0 / 0.25);
+  opacity: 0;
+  animation: money-flow 3.2s linear infinite;
+}
+
+@media (max-width: 639px) {
+  .money-coin {
+    width: 1.35rem;
+    height: 1.35rem;
+    font-size: 0.85rem;
+  }
+}
+
+@keyframes money-flow {
+  0% {
+    left: 0%;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -65%) scale(1);
+  }
+  85% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+}
+
+/* Reduced motion: the coins stand still, spaced along the track. */
+@media (prefers-reduced-motion: reduce) {
+  .money-coin {
+    animation: none;
+    opacity: 1;
+    left: var(--rest);
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+}

@@ -3,6 +3,7 @@ import { type PersonKey, type Summary, settlement } from "@/lib/ledger";
 import { formatMoney, plainAmount } from "@/lib/money";
 import type { Profiles } from "@/lib/settings";
 import { Avatar } from "./Avatar";
+import { MoneyFlow } from "./MoneyFlow";
 import { SettleUp } from "./SettleUp";
 
 /**
@@ -49,21 +50,22 @@ export function BalanceHero({
     >
       <span aria-hidden className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
       <span aria-hidden className="absolute -bottom-12 -left-8 h-36 w-36 rounded-full bg-white/10" />
-      <div className="relative flex items-center justify-between gap-2">
+      {/* Amount across the top; below it the two people, with the money flowing from one to the other. */}
+      <div className="relative">
+        {owed ? (
+          <>
+            <p className="text-sm font-medium text-white/85">
+              {people[owed.from]} owes {people[owed.to]}
+            </p>
+            <p className="mt-1 text-4xl font-extrabold tracking-tight drop-shadow-sm sm:text-5xl">{formatMoney(owed.amount, home)}</p>
+          </>
+        ) : (
+          <p className="py-1 text-2xl font-extrabold sm:text-3xl">{hasEntries ? "All square 🎉" : "Let's go! ✈︎"}</p>
+        )}
+      </div>
+      <div className="relative mt-4 flex items-start justify-between gap-1">
         {person(left, owed ? "owes" : "")}
-        <div className="min-w-0 flex-1">
-          {owed ? (
-            <>
-              <p className="text-sm font-medium text-white/85">
-                {people[owed.from]} owes {people[owed.to]}
-              </p>
-              <p className="my-1 text-4xl font-extrabold tracking-tight drop-shadow-sm sm:text-5xl">{formatMoney(owed.amount, home)}</p>
-              <p aria-hidden className="text-2xl text-white/80">⟶</p>
-            </>
-          ) : (
-            <p className="py-3 text-2xl font-extrabold sm:text-3xl">{hasEntries ? "All square 🎉" : "Let's go! ✈︎"}</p>
-          )}
-        </div>
+        <div className="min-w-0 flex-1 self-start pt-5">{owed && <MoneyFlow />}</div>
         {person(right, owed ? "is owed" : "")}
       </div>
       {owed && (

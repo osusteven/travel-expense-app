@@ -22,7 +22,8 @@ Also: [settings](docs/screenshots/5_settings.png) · [people](docs/screenshots/s
 - **People.** Upload a photo for each person in **Settings → People**. It's shrunk to a small round icon and used in
   the balance at the top, History and Statistics. Person 1 is red and person 2 is blue. In the balance (and the
   header bar above it), whoever owes is on the left and whoever is owed is on the right, so the sides and colors swap
-  when the balance flips. Each person's total sits on their side, with the trip total in the middle.
+  when the balance flips. Green dollar coins stream from whoever owes toward whoever is owed (they stand still if
+  the device has "reduce motion" on). Each person's total sits on their side, with the trip total in the middle.
 - **Settle up.** Record a payment with the amount (prefilled with the full balance), date, method (Venmo, cash,
   Zelle, PayPal, bank transfer or other) and a note or reference. History shows it with **✓ Balance: $0.00** when
   it settles the trip. With a Venmo username saved in Settings, **Open Venmo** opens Venmo with the recipient, amount
