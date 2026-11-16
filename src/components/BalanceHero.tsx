@@ -3,7 +3,7 @@ import { type PersonKey, type Summary, settlement } from "@/lib/ledger";
 import { formatMoney, plainAmount } from "@/lib/money";
 import type { Profiles } from "@/lib/settings";
 import { Avatar } from "./Avatar";
-import { FlowArrow, MoneyRain } from "./MoneyFlow";
+import { FlowArrowRow, MoneyRain } from "./MoneyFlow";
 import { SettleUp } from "./SettleUp";
 
 /**
@@ -70,7 +70,8 @@ export function BalanceHero({
       </div>
       <div className="relative mt-4 flex items-start justify-between gap-1">
         {person(left, role(left))}
-        <div className="min-w-0 flex-1 self-start pt-5">{owed && <FlowArrow direction={direction} />}</div>
+        {/* Same height as the photos, so the arrow lines up with their centers. */}
+        <div className="min-w-0 flex-1 self-start">{owed && <FlowArrowRow direction={direction} />}</div>
         {person(right, role(right))}
       </div>
       {owed && (

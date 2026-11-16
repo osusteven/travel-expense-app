@@ -3,18 +3,47 @@ import { Avatar } from "./Avatar";
 
 type Direction = "left" | "right";
 
-/** Arrow between the two people, pointing toward whoever is owed. */
+/**
+ * Arrow between the two people, pointing toward whoever is owed: one line with a joined arrowhead,
+ * drawn as SVG so it lines up the same on every device.
+ */
 export function FlowArrow({ direction }: { direction: Direction }) {
   return (
-    <div aria-hidden className="relative mx-1 h-9">
-      <span className="absolute inset-x-1 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-white/60" />
-      <span
-        className={`absolute top-1/2 -translate-y-1/2 text-2xl font-bold leading-none text-white/90 ${
-          direction === "right" ? "right-0" : "left-0"
-        }`}
-      >
-        {direction === "right" ? "›" : "‹"}
-      </span>
+    <svg
+      aria-hidden
+      viewBox="0 0 100 20"
+      preserveAspectRatio="none"
+      className={`block h-5 w-full overflow-visible text-white/85 drop-shadow ${direction === "left" ? "-scale-x-100" : ""}`}
+    >
+      {/* The shaft scales with the space between the photos; the head keeps its shape (non-scaling strokes). */}
+      <line x1="2" y1="10" x2="97" y2="10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+/** Arrowhead drawn separately so it never stretches; sits exactly on the end of the line. */
+function ArrowHead({ direction }: { direction: Direction }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 12 20"
+      className={`h-5 w-3 shrink-0 text-white/85 drop-shadow ${direction === "left" ? "-scale-x-100" : ""}`}
+    >
+      <path d="M2 3 L10 10 L2 17" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** The full arrow: line plus head, vertically centered on the photos. */
+export function FlowArrowRow({ direction }: { direction: Direction }) {
+  return (
+    <div aria-hidden className={`mx-2 flex h-16 items-center ${direction === "left" ? "flex-row-reverse" : ""}`}>
+      <div className="min-w-0 flex-1">
+        <FlowArrow direction={direction} />
+      </div>
+      <div className={direction === "left" ? "-mr-[9px]" : "-ml-[9px]"}>
+        <ArrowHead direction={direction} />
+      </div>
     </div>
   );
 }
