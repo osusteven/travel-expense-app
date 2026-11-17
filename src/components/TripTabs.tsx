@@ -63,7 +63,7 @@ export function TripTabs({ tabs, initial }: { tabs: Tab[]; initial: TabId }) {
               tabIndex={on ? 0 : -1}
               onClick={() => select(i)}
               className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-sm font-semibold transition ${
-                on ? "bg-gradient-to-r from-accent to-accent-2 text-white shadow" : "text-muted hover:bg-subtle hover:text-foreground"
+                on ? "bg-gradient-to-r from-accent-2 to-accent text-white shadow" : "text-muted hover:bg-subtle hover:text-foreground"
               }`}
             >
               <span aria-hidden>{t.icon}</span>

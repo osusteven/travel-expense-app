@@ -15,7 +15,7 @@ export function Header({
   left?: PersonKey;
   right?: PersonKey;
 }) {
-  const background = `linear-gradient(110deg, color-mix(in oklab, var(--${left}) 85%, black), color-mix(in oklab, var(--${left}) 50%, var(--${right})) 50%, color-mix(in oklab, var(--${right}) 85%, black))`;
+  const background = `linear-gradient(110deg, var(--${left}), color-mix(in oklab, var(--${left}) 50%, var(--${right})) 50%, var(--${right}))`;
   const link = (href: string, label: string, on: boolean) => (
     <Link
       href={href}
