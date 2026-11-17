@@ -9,6 +9,7 @@ import { LocalTime } from "@/components/LocalTime";
 import { tripPath } from "@/lib/ledger";
 import { requireAuth } from "@/lib/session";
 import { RenameTripForm } from "../../TripForms";
+import { TripImageForm } from "../../TripImageForm";
 
 export default async function EditTripPage({ params }: PageProps<"/trips/[id]/edit">) {
   await requireAuth();
@@ -31,6 +32,10 @@ export default async function EditTripPage({ params }: PageProps<"/trips/[id]/ed
           <h1 className="mb-4 text-2xl font-extrabold tracking-tight">Trip settings</h1>
           <h2 className="section-title mb-3">Name</h2>
           <RenameTripForm id={trip.id} name={trip.name} />
+        </section>
+        <section className="card space-y-3">
+          <h2 className="section-title">Picture</h2>
+          <TripImageForm id={trip.id} image={trip.image} />
         </section>
         <section className="card space-y-3">
           <h2 className="section-title text-bad">Delete trip</h2>

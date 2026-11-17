@@ -60,8 +60,17 @@ export default async function TripsPage() {
             <li key={r.trip.id}>
               <Link
                 href={tripPath(r.trip)}
-                className="card flex flex-wrap items-center gap-4 transition hover:-translate-y-px hover:shadow-lg"
+                className="card flex flex-wrap items-center gap-4 overflow-hidden transition hover:-translate-y-px hover:shadow-lg"
               >
+                {r.trip.image && (
+                  // The trip's picture across the top of its card.
+                  // eslint-disable-next-line @next/next/no-img-element -- inline data URL
+                  <img
+                    src={r.trip.image}
+                    alt=""
+                    className="-mx-4 -mt-4 mb-0 aspect-[3/1] w-[calc(100%+2rem)] max-w-none object-cover sm:-mx-5 sm:-mt-5 sm:w-[calc(100%+2.5rem)]"
+                  />
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 text-lg font-bold">
                     <span className="truncate">{r.trip.name}</span>

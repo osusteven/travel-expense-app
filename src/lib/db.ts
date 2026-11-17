@@ -100,6 +100,8 @@ const schema = `
   -- Trip web addresses (/trips/japan-korea).
   ALTER TABLE trips ADD COLUMN IF NOT EXISTS slug TEXT;
   CREATE UNIQUE INDEX IF NOT EXISTS trips_slug ON trips (slug);
+  -- Optional trip picture (banner).
+  ALTER TABLE trips ADD COLUMN IF NOT EXISTS image TEXT;
   -- A trip's previous addresses, so links saved before a rename still work.
   CREATE TABLE IF NOT EXISTS trip_old_slugs (
     slug TEXT PRIMARY KEY,
@@ -344,9 +346,9 @@ export async function importData(
     }
     for (const t of trips) {
       await c.query(
-        `INSERT INTO trips (id, name, slug, created_at) VALUES ($1, $2, $3, $4)
-         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, slug = EXCLUDED.slug`,
-        [t.id, t.name, await uniqueSlug(c, t.name, t.id), t.createdAt],
+        `INSERT INTO trips (id, name, slug, image, created_at) VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, slug = EXCLUDED.slug, image = EXCLUDED.image`,
+        [t.id, t.name, await uniqueSlug(c, t.name, t.id), t.image ?? null, t.createdAt],
       );
     }
     let added = 0;
@@ -366,7 +368,13 @@ export async function importData(
 
 // ---- Trips ----
 
-const toTrip = (r: Row): Trip => ({ id: String(r.id), name: String(r.name), slug: String(r.slug), createdAt: iso(r.created_at) });
+const toTrip = (r: Row): Trip => ({
+  id: String(r.id),
+  name: String(r.name),
+  slug: String(r.slug),
+  image: r.image == null ? null : String(r.image),
+  createdAt: iso(r.created_at),
+});
 
 /** A slug from the name that no other trip uses ("japan", "japan-2", …). */
 async function uniqueSlug(c: Pool | PoolClient, name: string, exceptId?: string): Promise<string> {
@@ -431,6 +439,12 @@ export async function renameTrip(id: string, name: string): Promise<Trip | null>
     await c.query("UPDATE trips SET name = $2, slug = $3 WHERE id = $1", [id, name, slug]);
   });
   return getTrip(id);
+}
+
+/** Sets or removes (null) a trip's picture. */
+export async function setTripImage(id: string, image: string | null): Promise<void> {
+  if (!isUuid(id)) return;
+  await (await db()).query("UPDATE trips SET image = $2 WHERE id = $1", [id, image]);
 }
 
 /** Deletes a trip and its entries (each entry is logged, so it can still be seen under Deleted entries). */

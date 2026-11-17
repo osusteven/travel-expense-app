@@ -7,6 +7,8 @@ import { Flag } from "@/components/Flag";
 import { Header } from "@/components/Header";
 import { LocalTime } from "@/components/LocalTime";
 import { History } from "@/components/History";
+import { TripTabs } from "@/components/TripTabs";
+import { TAB_IDS, type TabId } from "@/lib/tabs";
 import { Statistics } from "@/components/Statistics";
 import { config, people } from "@/lib/config";
 import { homeFirst, toOptions } from "@/lib/currencyOptions";
@@ -22,7 +24,7 @@ import { HISTORY_SORT_COOKIE, parseHistorySort } from "@/lib/historySort";
 export default async function TripPage({ params, searchParams }: PageProps<"/trips/[id]">) {
   await requireAuth();
   const { id } = await params;
-  const { saved, settled } = await searchParams;
+  const { saved, settled, tab } = await searchParams;
   const trip = await getTrip(id);
   if (!trip) notFound();
   // Old links used the trip's id; send them to its address.
@@ -41,6 +43,10 @@ export default async function TripPage({ params, searchParams }: PageProps<"/tri
   const gone = [...new Map(deleted.filter((d) => !liveIds.has(d.snapshot.id)).map((d) => [d.snapshot.id, d])).values()];
   // Home currency first, then the rest alphabetically; the form starts with the one this device used last.
   const currencies = homeFirst(home, enabled);
+  // Which tab opens: from the address (?tab=history), History right after a payment, otherwise Add entry.
+  const initialTab: TabId = TAB_IDS.includes(tab as TabId) ? (tab as TabId) : settled ? "history" : "add";
+  const expenseCount = entries.filter((e) => e.kind === "expense").length;
+  const paymentCount = entries.length - expenseCount;
 
   return (
     <>
@@ -66,7 +72,19 @@ export default async function TripPage({ params, searchParams }: PageProps<"/tri
             </Link>
           </div>
           {/* Full width and allowed to wrap, so long names aren't cut off on phones. */}
-          <h1 className="break-words text-2xl font-extrabold tracking-tight">{trip.name}</h1>
+          {trip.image ? (
+            // Banner: the trip's picture with its name over the bottom edge.
+            <div className="relative overflow-hidden rounded-2xl shadow-lg">
+              {/* eslint-disable-next-line @next/next/no-img-element -- inline data URL */}
+              <img src={trip.image} alt="" className="aspect-[3/1] w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+              <h1 className="absolute inset-x-0 bottom-0 break-words p-4 text-2xl font-extrabold tracking-tight text-white drop-shadow sm:text-3xl">
+                {trip.name}
+              </h1>
+            </div>
+          ) : (
+            <h1 className="break-words text-2xl font-extrabold tracking-tight">{trip.name}</h1>
+          )}
         </div>
 
         <BalanceHero
@@ -80,83 +98,101 @@ export default async function TripPage({ params, searchParams }: PageProps<"/tri
         />
         {settled && (
           <p className="-mt-4 rounded-lg bg-good/10 px-3 py-2 text-center text-sm font-medium text-good">
-            Payment recorded ✓ It&apos;s in the History below.
+            Payment recorded ✓ It&apos;s in History.
           </p>
         )}
 
-        <section className="card">
-          <h2 className="section-title mb-4">
-            <span aria-hidden className="grid h-8 w-8 place-items-center rounded-xl bg-accent/15 text-base">＋</span>
-            Add an entry
-          </h2>
-          {saved && <p className="mb-4 rounded-lg bg-good/10 px-3 py-2 text-sm font-medium text-good">Saved ✓</p>}
-          <EntryForm
-            // Remount after each save so the form starts empty again.
-            key={entries.length + (entries[0]?.updatedAt ?? "")}
-            tripId={trip.id}
-            people={people}
-            homeCurrency={home}
-            currencies={toOptions(currencies)}
-            defaultCurrency={await defaultCurrency(currencies)}
-            defaultPaidBy={await defaultPayer()}
-            balanceBefore={summary.balance}
-          />
-        </section>
-
-        <section>
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <h2 className="section-title mr-auto">
-              <span aria-hidden className="grid h-8 w-8 place-items-center rounded-xl bg-accent-2/15 text-base">🧾</span>
-              History{" "}
-              <span className="text-sm font-normal text-muted">
-                ({countLabel(entries.filter((e) => e.kind === "expense").length, entries.filter((e) => e.kind === "payment").length)})
-              </span>
-            </h2>
-            {entries.length > 0 && (
-              <>
-                <a href={`/api/export?format=csv&trip=${trip.id}`} className="btn-secondary !py-1 text-xs">
-                  Export CSV
-                </a>
-                <a href={`/api/export?format=json&trip=${trip.id}`} className="btn-secondary !py-1 text-xs">
-                  JSON
-                </a>
-              </>
-            )}
-          </div>
-          <History
-            items={historyItems(entries, home)}
-            people={people}
-            home={home}
-            photos={{ p1: prof.p1.photo, p2: prof.p2.photo }}
-            initialSort={parseHistorySort((await cookies()).get(HISTORY_SORT_COOKIE)?.value)}
-          />
-          {gone.length > 0 && (
-            <details className="card mt-4 text-sm">
-              <summary className="cursor-pointer font-semibold">Deleted entries ({gone.length})</summary>
-              <ul className="mt-2 space-y-1.5 text-muted">
-                {gone.map((d) => (
-                  <li key={d.snapshot.id + d.at} className="flex items-center gap-2">
-                    <Flag currency={d.snapshot.currency} />
-                    <span>
-                      {d.snapshot.date} · {d.snapshot.description} · {formatMoney(d.snapshot.amountMinor, d.snapshot.currency)}{" "}
-                      <span className="text-xs">
-                        (deleted <LocalTime iso={d.at} dateOnly />)
-                      </span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
-        </section>
-
-        <section>
-          <h2 className="section-title mb-3">
-            <span aria-hidden className="grid h-8 w-8 place-items-center rounded-xl bg-accent-3/15 text-base">📊</span>
-            Statistics
-          </h2>
-          <Statistics stats={computeStats(entries, home)} people={people} home={home} photos={{ p1: prof.p1.photo, p2: prof.p2.photo }} />
-        </section>
+        <TripTabs
+          // Start over on the tab the server asks for (e.g. History right after recording a payment).
+          key={initialTab}
+          initial={initialTab}
+          tabs={[
+            {
+              id: "add",
+              label: "Add entry",
+              icon: "＋",
+              content: (
+                <section className="card">
+                  <h2 className="sr-only">Add an entry</h2>
+                  {saved && <p className="mb-4 rounded-lg bg-good/10 px-3 py-2 text-sm font-medium text-good">Saved ✓</p>}
+                  <EntryForm
+                    // Remount after each save so the form starts empty again.
+                    key={entries.length + (entries[0]?.updatedAt ?? "")}
+                    tripId={trip.id}
+                    people={people}
+                    homeCurrency={home}
+                    currencies={toOptions(currencies)}
+                    defaultCurrency={await defaultCurrency(currencies)}
+                    defaultPaidBy={await defaultPayer()}
+                    balanceBefore={summary.balance}
+                    photos={{ p1: prof.p1.photo, p2: prof.p2.photo }}
+                  />
+                </section>
+              ),
+            },
+            {
+              id: "history",
+              label: "History",
+              icon: "🧾",
+              badge: String(entries.length),
+              content: (
+                <section>
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <h2 className="section-title mr-auto">
+                      History <span className="text-sm font-normal text-muted">({countLabel(expenseCount, paymentCount)})</span>
+                    </h2>
+                    {entries.length > 0 && (
+                      <>
+                        <a href={`/api/export?format=csv&trip=${trip.id}`} className="btn-secondary text-xs">
+                          Export CSV
+                        </a>
+                        <a href={`/api/export?format=json&trip=${trip.id}`} className="btn-secondary text-xs">
+                          JSON
+                        </a>
+                      </>
+                    )}
+                  </div>
+                  <History
+                    items={historyItems(entries, home)}
+                    people={people}
+                    home={home}
+                    photos={{ p1: prof.p1.photo, p2: prof.p2.photo }}
+                    initialSort={parseHistorySort((await cookies()).get(HISTORY_SORT_COOKIE)?.value)}
+                  />
+                  {gone.length > 0 && (
+                    <details className="card mt-4 text-sm">
+                      <summary className="cursor-pointer font-semibold">Deleted entries ({gone.length})</summary>
+                      <ul className="mt-2 space-y-1.5 text-muted">
+                        {gone.map((d) => (
+                          <li key={d.snapshot.id + d.at} className="flex items-center gap-2">
+                            <Flag currency={d.snapshot.currency} />
+                            <span>
+                              {d.snapshot.date} · {d.snapshot.description} · {formatMoney(d.snapshot.amountMinor, d.snapshot.currency)}{" "}
+                              <span className="text-xs">
+                                (deleted <LocalTime iso={d.at} dateOnly />)
+                              </span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </section>
+              ),
+            },
+            {
+              id: "stats",
+              label: "Statistics",
+              icon: "📊",
+              content: (
+                <section>
+                  <h2 className="sr-only">Statistics</h2>
+                  <Statistics stats={computeStats(entries, home)} people={people} home={home} photos={{ p1: prof.p1.photo, p2: prof.p2.photo }} />
+                </section>
+              ),
+            },
+          ]}
+        />
       </main>
     </>
   );

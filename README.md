@@ -16,11 +16,14 @@ Also: [settings](docs/screenshots/5_settings.png) · [people](docs/screenshots/s
 ## What it does
 
 - **Trips.** Each trip has its own entries, balance, history and statistics, and is settled on its own. Each trip
-  has its own address made from its name, e.g. `/trips/japan-korea-2026` (renaming changes it). **Trips**
+  has its own address made from its name, e.g. `/trips/japan-korea-2026` (renaming changes it; old links still
+  work). Add a picture under **Trip settings**: it's shown on the Trips list and as a banner on the trip page.
+- **Tabs.** On a trip, the balance stays at the top and the rest is in three tabs: **Add entry**, **History** and
+  **Statistics**. The open tab is kept in the address, so a reload or a shared link opens the same one. **Trips**
   lists every trip with its dates, countries, total and whether it's settled. The *current* trip (shared by both
   of you) opens by default. Past trips stay viewable, and you can rename or delete them.
 - **People.** Upload a photo for each person in **Settings → People**. It's shrunk to a small round icon and used in
-  the balance at the top, History and Statistics. Person 1 is always on the left in red and person 2 always on the
+  the balance at the top, on the "Paid by" buttons when adding an entry, in History and in Statistics. Person 1 is always on the left in red and person 2 always on the
   right in blue; nothing moves when the balance changes. The arrow between you points toward whoever is owed, and
   green dollar signs drift across the block in that direction; every 15 seconds one of them is one of your icons
   instead, alternating between the two of you (all hidden if the device has "reduce motion" on). Each

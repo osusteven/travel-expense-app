@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { config } from "@/lib/config";
-import { createTrip, deleteEntry, deleteTrip, getEntry, getTrip, listEntries, listTrips, renameTrip, saveEntry } from "@/lib/db";
+import { createTrip, deleteEntry, deleteTrip, getEntry, getTrip, listEntries, listTrips, renameTrip, saveEntry, setTripImage } from "@/lib/db";
 import { type Entry, PAYMENT_METHODS, type PaymentMethod, summarize, tripPath } from "@/lib/ledger";
 import { parseDecimal, toMinor } from "@/lib/money";
 import { requireAuth } from "@/lib/session";
@@ -56,7 +56,7 @@ export async function saveEntryAction(_prev: SaveState, form: FormData): Promise
   }
   revalidatePath("/", "layout");
   const path = tripPath((await getTrip(tripId)) ?? { slug: tripId });
-  redirect(id ? `${path}#entry-${id}` : `${path}?saved=1`);
+  redirect(id ? `${path}?tab=history#entry-${id}` : `${path}?saved=1`);
 }
 
 export async function deleteEntryAction(form: FormData) {
@@ -65,7 +65,7 @@ export async function deleteEntryAction(form: FormData) {
   if (!entry) redirect("/");
   await deleteEntry(entry.id);
   revalidatePath("/", "layout");
-  redirect(tripPath((await getTrip(entry.tripId)) ?? { slug: entry.tripId }));
+  redirect(`${tripPath((await getTrip(entry.tripId)) ?? { slug: entry.tripId })}?tab=history`);
 }
 
 export type SettleState = { error?: string };
@@ -164,4 +164,22 @@ export async function deleteTripAction(form: FormData) {
   }
   revalidatePath("/", "layout");
   redirect("/trips");
+}
+
+const IMAGE_PREFIX = "data:image/jpeg;base64,";
+
+/** Sets or removes a trip's picture (cropped to a 1200×400 JPEG in the browser). */
+export async function saveTripImageAction(_prev: TripState & { ok?: string }, form: FormData): Promise<TripState & { ok?: string }> {
+  await requireAuth();
+  const trip = await getTrip(String(form.get("id") ?? ""));
+  if (!trip) return { error: "This trip no longer exists." };
+  if (form.get("remove") === "1") {
+    await setTripImage(trip.id, null);
+  } else {
+    const image = String(form.get("image") ?? "");
+    if (!image.startsWith(IMAGE_PREFIX) || image.length > 700_000) return { error: "Choose a picture first." };
+    await setTripImage(trip.id, image);
+  }
+  revalidatePath("/", "layout");
+  return { ok: form.get("remove") === "1" ? "Picture removed." : "Saved." };
 }

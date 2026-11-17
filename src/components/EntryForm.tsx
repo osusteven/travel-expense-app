@@ -4,6 +4,7 @@ import { startTransition, useActionState, useEffect, useRef, useState, useSyncEx
 import Decimal from "decimal.js";
 import { saveEntryAction, type SaveState } from "@/app/actions";
 import type { People } from "@/lib/config";
+import { Avatar } from "./Avatar";
 import { CurrencyPicker, type CurrencyOption } from "./CurrencyPicker";
 import {
   type Entry,
@@ -52,6 +53,7 @@ export function EntryForm({
   defaultCurrency,
   defaultPaidBy = "p1",
   balanceBefore = 0,
+  photos = {},
   entry,
 }: {
   /** The trip new entries are added to. */
@@ -68,6 +70,8 @@ export function EntryForm({
    * Used to describe what a payment does.
    */
   balanceBefore?: number;
+  /** Profile pictures (Settings → People), shown on the person buttons. */
+  photos?: Partial<Record<PersonKey, string>>;
   /** Present when editing. */
   entry?: Entry;
 }) {
@@ -384,10 +388,11 @@ export function EntryForm({
         label={kind === "payment" ? "Who gave the money?" : "Paid by"}
         value={paidBy}
         onChange={(v) => setPaidBy(v as PersonKey)}
-        options={[
-          { value: "p1", label: people.p1 },
-          { value: "p2", label: people.p2 },
-        ]}
+        options={(["p1", "p2"] as const).map((p) => ({
+          value: p,
+          label: people[p],
+          icon: <Avatar person={p} name={people[p]} photo={photos[p]} size={28} />,
+        }))}
       />
 
       {kind === "expense" ? (
@@ -601,7 +606,7 @@ function Segmented({
 }: {
   label: string;
   value: string;
-  options: { value: string; label: string }[];
+  options: { value: string; label: string; icon?: React.ReactNode }[];
   onChange: (v: string) => void;
 }) {
   return (
@@ -615,10 +620,16 @@ function Segmented({
             role="radio"
             aria-checked={value === o.value}
             onClick={() => onChange(o.value)}
-            className={`min-h-11 px-3 py-2 text-sm font-medium transition-colors ${
+            className={`inline-flex min-h-11 items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition-colors ${
               value === o.value ? "bg-accent text-white" : "hover:bg-subtle"
             }`}
           >
+            {/* Decorative: the name next to it already says who it is. */}
+            {o.icon && (
+              <span aria-hidden className={value === o.value ? "rounded-full ring-2 ring-white" : ""}>
+                {o.icon}
+              </span>
+            )}
             {o.label}
           </button>
         ))}

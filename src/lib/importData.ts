@@ -30,6 +30,7 @@ const tripSchema = z.object({
   createdAt: z.string().min(1),
   // Assigned again on import (must be unique), so older files without one are fine.
   slug: z.string().optional(),
+  image: z.string().startsWith("data:image/").max(700_000).nullable().optional(),
 });
 
 const profileSchema = z.object({

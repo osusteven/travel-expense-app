@@ -7,7 +7,7 @@ import { Header } from "@/components/Header";
 import { LocalTime } from "@/components/LocalTime";
 import { config, people } from "@/lib/config";
 import { homeFirst, toOptions } from "@/lib/currencyOptions";
-import { enabledCurrencies } from "@/lib/settings";
+import { enabledCurrencies, profiles } from "@/lib/settings";
 import { entryHistory, getEntry, getTrip, listEntries } from "@/lib/db";
 import { type Entry, entryEffect, summarize, tripPath } from "@/lib/ledger";
 import { formatMoney, formatRate } from "@/lib/money";
@@ -16,7 +16,7 @@ import { requireAuth } from "@/lib/session";
 export default async function EditEntryPage({ params }: PageProps<"/entries/[id]">) {
   await requireAuth();
   const { id } = await params;
-  const [entry, history, enabled] = await Promise.all([getEntry(id), entryHistory(id), enabledCurrencies()]);
+  const [entry, history, enabled, prof] = await Promise.all([getEntry(id), entryHistory(id), enabledCurrencies(), profiles()]);
   if (!entry) notFound();
   const trip = await getTrip(entry.tripId);
   // The trip's balance without this entry, so the form can describe what it does.
@@ -41,6 +41,7 @@ export default async function EditEntryPage({ params }: PageProps<"/entries/[id]
             defaultCurrency={entry.currency}
             entry={entry}
             balanceBefore={balanceBefore}
+            photos={{ p1: prof.p1.photo, p2: prof.p2.photo }}
           />
         </section>
 

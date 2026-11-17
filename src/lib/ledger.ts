@@ -83,6 +83,8 @@ export interface Trip {
   name: string;
   /** The trip's web address: /trips/<slug>, made from its name. */
   slug: string;
+  /** Optional picture (wide JPEG data URL), shown on the Trips list and as the trip page banner. */
+  image?: string | null;
   createdAt: string;
 }
 
