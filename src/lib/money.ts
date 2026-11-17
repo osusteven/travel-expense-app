@@ -104,3 +104,9 @@ export function formatRate(rate: string): string {
   const d = new Decimal(rate);
   return d.toSignificantDigits(8).toFixed();
 }
+
+/** "3 expenses · 1 payment": the same wording on the Trips list and the trip page. */
+export function countLabel(expenses: number, payments: number): string {
+  const e = `${expenses} ${expenses === 1 ? "expense" : "expenses"}`;
+  return payments ? `${e} · ${payments} ${payments === 1 ? "payment" : "payments"}` : e;
+}

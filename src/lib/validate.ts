@@ -44,7 +44,9 @@ export function parseEntryForm(
 
   const amount = parseDecimal(f.amount);
   let amountMinor: number | null = null;
-  if (!amount || amount.lte(0)) errors.amount = "Enter an amount greater than 0";
+  if (!f.amount.trim()) errors.amount = "Enter an amount";
+  else if (!amount) errors.amount = "Enter a number";
+  else if (amount.lte(0)) errors.amount = "Enter an amount greater than 0";
   else if (!errors.currency) {
     amountMinor = toMinor(amount, f.currency);
     if (amountMinor === null) errors.amount = `Too many decimals for ${f.currency}`;

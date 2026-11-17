@@ -87,6 +87,7 @@ export function CurrencyPicker({
               }
             }}
             placeholder="Search currency or country"
+            aria-label="Search currency or country"
             aria-controls={listId}
             className="w-full border-b border-line bg-transparent px-3 py-2.5 text-sm outline-none"
           />
@@ -100,7 +101,7 @@ export function CurrencyPicker({
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => choose(o.code)}
                 onMouseEnter={() => setActive(i)}
-                className={`flex cursor-pointer items-center gap-2 px-3 py-2 text-sm ${
+                className={`flex min-h-11 cursor-pointer items-center gap-2 px-3 py-2 text-sm ${
                   i === active ? "bg-subtle" : ""
                 } ${o.code === value ? "font-semibold" : ""}`}
               >

@@ -6,7 +6,7 @@ import { login } from "./actions";
 export function LoginForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState(login, {});
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} className="space-y-4" noValidate>
       <input type="hidden" name="next" value={next} />
       {/* Honeypot, hidden from people and screen readers */}
       <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden">

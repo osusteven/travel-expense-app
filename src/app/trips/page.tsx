@@ -5,7 +5,7 @@ import { Header } from "@/components/Header";
 import { config, people } from "@/lib/config";
 import { listEntries, listTrips } from "@/lib/db";
 import { chronological, settlement, summarize, tripPath } from "@/lib/ledger";
-import { formatMoney } from "@/lib/money";
+import { countLabel, formatMoney } from "@/lib/money";
 import { requireAuth } from "@/lib/session";
 import { currentTripId, profiles } from "@/lib/settings";
 
@@ -23,6 +23,8 @@ export default async function TripsPage() {
     return {
       trip: t,
       count: list.length,
+      expenses: list.filter((e) => e.kind === "expense").length,
+      payments: list.filter((e) => e.kind === "payment").length,
       first: list[0]?.date,
       last: list[list.length - 1]?.date,
       currencies: [...new Set(list.map((e) => e.currency))],
@@ -67,7 +69,7 @@ export default async function TripsPage() {
                   </p>
                   <p className="text-sm text-muted">
                     {r.first ? (r.first === r.last ? fmt(r.first) : `${fmt(r.first)} – ${fmt(r.last!)}`) : "No entries yet"}
-                    {r.count > 0 && ` · ${r.count} ${r.count === 1 ? "entry" : "entries"}`}
+                    {r.count > 0 && ` · ${countLabel(r.expenses, r.payments)}`}
                   </p>
                   {r.currencies.length > 0 && (
                     <p className="mt-1.5 flex flex-wrap gap-1.5 text-lg">
@@ -96,3 +98,4 @@ export default async function TripsPage() {
     </>
   );
 }
+

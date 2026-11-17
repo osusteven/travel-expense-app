@@ -100,6 +100,11 @@ const schema = `
   -- Trip web addresses (/trips/japan-korea).
   ALTER TABLE trips ADD COLUMN IF NOT EXISTS slug TEXT;
   CREATE UNIQUE INDEX IF NOT EXISTS trips_slug ON trips (slug);
+  -- A trip's previous addresses, so links saved before a rename still work.
+  CREATE TABLE IF NOT EXISTS trip_old_slugs (
+    slug TEXT PRIMARY KEY,
+    trip_id UUID NOT NULL
+  );
 `;
 
 /** Entries from before trips existed are moved into a first trip, which becomes the current one. */
@@ -368,7 +373,11 @@ async function uniqueSlug(c: Pool | PoolClient, name: string, exceptId?: string)
   const base = slugify(name);
   for (let n = 1; ; n++) {
     const candidate = n === 1 ? base : `${base}-${n}`;
-    const res = await c.query("SELECT 1 FROM trips WHERE slug = $1 AND id IS DISTINCT FROM $2::uuid", [candidate, exceptId ?? null]);
+    const res = await c.query(
+      `SELECT 1 FROM trips WHERE slug = $1 AND id IS DISTINCT FROM $2::uuid
+       UNION ALL SELECT 1 FROM trip_old_slugs WHERE slug = $1 AND trip_id IS DISTINCT FROM $2::uuid`,
+      [candidate, exceptId ?? null],
+    );
     if (!res.rowCount) return candidate;
   }
 }
@@ -378,11 +387,21 @@ export async function listTrips(): Promise<Trip[]> {
   return res.rows.map(toTrip);
 }
 
-/** Finds a trip by its address (slug) or its id. */
+/** Finds a trip by its address (current or previous) or its id. */
 export async function getTrip(idOrSlug: string): Promise<Trip | null> {
-  const res = isUuid(idOrSlug)
-    ? await (await db()).query("SELECT * FROM trips WHERE id = $1", [idOrSlug])
-    : await (await db()).query("SELECT * FROM trips WHERE slug = $1", [idOrSlug.toLowerCase()]);
+  const p = await db();
+  if (isUuid(idOrSlug)) {
+    const res = await p.query("SELECT * FROM trips WHERE id = $1", [idOrSlug]);
+    return res.rows[0] ? toTrip(res.rows[0]) : null;
+  }
+  const slug = idOrSlug.toLowerCase();
+  const res = await p.query(
+    `SELECT * FROM trips WHERE slug = $1
+     UNION ALL
+     SELECT t.* FROM trip_old_slugs o JOIN trips t ON t.id = o.trip_id WHERE o.slug = $1
+     LIMIT 1`,
+    [slug],
+  );
   return res.rows[0] ? toTrip(res.rows[0]) : null;
 }
 
@@ -397,7 +416,20 @@ export async function createTrip(name: string): Promise<Trip> {
 export async function renameTrip(id: string, name: string): Promise<Trip | null> {
   if (!isUuid(id)) return null;
   const p = await db();
-  await p.query("UPDATE trips SET name = $2, slug = $3 WHERE id = $1", [id, name, await uniqueSlug(p, name, id)]);
+  const before = await getTrip(id);
+  if (!before) return null;
+  const slug = await uniqueSlug(p, name, id);
+  await inTransaction(async (c) => {
+    if (before.slug !== slug) {
+      // Keep the old address pointing here.
+      await c.query(
+        "INSERT INTO trip_old_slugs (slug, trip_id) VALUES ($1, $2) ON CONFLICT (slug) DO UPDATE SET trip_id = EXCLUDED.trip_id",
+        [before.slug, id],
+      );
+    }
+    await c.query("DELETE FROM trip_old_slugs WHERE slug = $1", [slug]);
+    await c.query("UPDATE trips SET name = $2, slug = $3 WHERE id = $1", [id, name, slug]);
+  });
   return getTrip(id);
 }
 
@@ -411,6 +443,7 @@ export async function deleteTrip(id: string): Promise<void> {
         r.id, JSON.stringify(toEntry(r)),
       ]);
     }
+    await c.query("DELETE FROM trip_old_slugs WHERE trip_id = $1", [id]);
     await c.query("DELETE FROM trips WHERE id = $1", [id]);
   });
 }

@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useSyncExternalStore } from "react";
 import { settleUpAction, type SettleState } from "@/app/actions";
+import { parseDecimal } from "@/lib/money";
 import { PAYMENT_METHODS, type PaymentMethod, type PersonKey, methodLabel } from "@/lib/ledger";
 
 const noSubscribe = () => () => {};
@@ -55,7 +56,7 @@ export function SettleUp({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-gray-900 shadow-md transition hover:bg-white/90"
+        className="min-h-11 rounded-full bg-white px-5 py-2 text-sm font-semibold text-gray-900 shadow-md transition hover:bg-white/90"
       >
         Settle up
       </button>
@@ -63,41 +64,55 @@ export function SettleUp({
   }
 
   return (
-    <form action={action} className="mx-auto mt-1 max-w-md space-y-3 rounded-2xl bg-white p-4 text-left text-gray-900 shadow-xl">
+    <form
+      action={action}
+      onSubmit={(e) => {
+        // Paying more than is owed flips the debt; make sure that's intended.
+        const paid = parseDecimal(value);
+        const owed = parseDecimal(amount);
+        if (paid && owed && paid.gt(owed)) {
+          const extra = paid.minus(owed).toFixed(2);
+          if (!confirm(`That's ${extra} ${homeCurrency} more than the ${amount} ${homeCurrency} ${fromName} owes. After this, ${toName} would owe ${fromName} ${extra} ${homeCurrency}.\n\nRecord it anyway?`)) {
+            e.preventDefault();
+          }
+        }
+      }}
+      className="mx-auto mt-1 max-w-md space-y-3 rounded-2xl border border-line bg-card p-4 text-left text-foreground shadow-xl"
+    >
       <input type="hidden" name="tripId" value={tripId} />
       <input type="hidden" name="from" value={from} />
       <p className="text-sm font-semibold">
         {fromName} pays {toName}
       </p>
       <div className="grid grid-cols-2 gap-3">
-        <label className="block text-xs font-medium text-gray-500">
+        <label className="block text-xs font-medium text-muted">
           Amount ({homeCurrency})
           <input
             name="amount"
             inputMode="decimal"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-base text-gray-900 sm:text-sm"
+            className="input mt-1"
           />
         </label>
-        <label className="block text-xs font-medium text-gray-500">
+        <label className="block text-xs font-medium text-muted">
           Date paid
           <input
             type="date"
             name="date"
             value={date || today}
             onChange={(e) => setDate(e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-base text-gray-900 sm:text-sm"
+            className="input mt-1"
           />
         </label>
       </div>
-      <label className="block text-xs font-medium text-gray-500">
+      <label className="block text-xs font-medium text-muted">
         Paid with
         <select
           name="method"
           value={method}
           onChange={(e) => setMethod(e.target.value as PaymentMethod)}
-          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 sm:text-sm"
+          className="input mt-1"
         >
           {PAYMENT_METHODS.map((m) => (
             <option key={m} value={m}>
@@ -106,14 +121,14 @@ export function SettleUp({
           ))}
         </select>
       </label>
-      <label className="block text-xs font-medium text-gray-500">
+      <label className="block text-xs font-medium text-muted">
         Note or reference (optional)
         <input
           name="reference"
           value={reference}
           onChange={(e) => setReference(e.target.value)}
           placeholder="e.g. Venmo note or confirmation number"
-          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-base text-gray-900 sm:text-sm"
+          className="input mt-1"
         />
       </label>
       {method === "venmo" &&
@@ -122,28 +137,29 @@ export function SettleUp({
             href={venmoUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 rounded-lg bg-[#008cff] px-4 py-2 text-sm font-semibold text-white hover:brightness-110"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#008cff] px-4 py-2 text-sm font-semibold text-white hover:brightness-110"
           >
             Open Venmo to pay @{toVenmo}
           </a>
         ) : (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted">
             {homeCurrency === "USD"
               ? `Add ${toName}'s Venmo username in Settings to open Venmo with this payment filled in.`
               : "Venmo only works in USD."}
           </p>
         ))}
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
       <div className="flex gap-2">
         <button type="submit" disabled={pending} className="btn-primary flex-1">
           {pending ? "Saving…" : "Record payment"}
         </button>
-        <button type="button" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-100">
+        <button type="button" onClick={() => setOpen(false)} className="min-h-11 rounded-lg px-3 py-2 text-sm text-muted hover:bg-subtle">
           Cancel
         </button>
       </div>
-      <p className="text-xs text-gray-500">
-        Record it once the money has been sent. The full amount brings this trip to {homeCurrency === "USD" ? "$0" : "zero"}.
+      <p className="text-xs text-muted">
+        Record it once the money has been sent. Paying the full {amount} {homeCurrency} settles the trip; less is
+        recorded as a partial payment.
       </p>
     </form>
   );

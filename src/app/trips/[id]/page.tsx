@@ -5,13 +5,14 @@ import { BalanceHero } from "@/components/BalanceHero";
 import { EntryForm } from "@/components/EntryForm";
 import { Flag } from "@/components/Flag";
 import { Header } from "@/components/Header";
+import { LocalTime } from "@/components/LocalTime";
 import { History } from "@/components/History";
 import { Statistics } from "@/components/Statistics";
 import { config, people } from "@/lib/config";
 import { homeFirst, toOptions } from "@/lib/currencyOptions";
 import { deletedEntries, getTrip, listEntries } from "@/lib/db";
 import { summarize, tripPath } from "@/lib/ledger";
-import { formatMoney } from "@/lib/money";
+import { countLabel, formatMoney } from "@/lib/money";
 import { requireAuth } from "@/lib/session";
 import { currentTripId, defaultCurrency, defaultPayer, enabledCurrencies, profiles } from "@/lib/settings";
 import { computeStats, historyItems } from "@/lib/stats";
@@ -45,24 +46,27 @@ export default async function TripPage({ params, searchParams }: PageProps<"/tri
     <>
       <Header active="trips" />
       <main className="mx-auto w-full max-w-3xl space-y-8 px-4 py-6">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <Link href="/trips" className="text-sm font-medium text-accent hover:underline">
-            ← All trips
-          </Link>
-          <h1 className="min-w-0 flex-1 truncate text-2xl font-extrabold tracking-tight">{trip.name}</h1>
-          {current === trip.id ? (
-            <span className="chip bg-accent/15 text-accent">Current trip</span>
-          ) : (
-            <form action={makeCurrentTripAction}>
-              <input type="hidden" name="id" value={trip.id} />
-              <button type="submit" className="btn-secondary !py-1 text-xs">
-                Make current trip
-              </button>
-            </form>
-          )}
-          <Link href={`${tripPath(trip)}/edit`} className="btn-secondary !py-1 text-xs">
-            Trip settings
-          </Link>
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href="/trips" className="mr-auto inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline">
+              ← All trips
+            </Link>
+            {current === trip.id ? (
+              <span className="chip bg-accent/15 text-accent">Current trip</span>
+            ) : (
+              <form action={makeCurrentTripAction}>
+                <input type="hidden" name="id" value={trip.id} />
+                <button type="submit" className="btn-secondary text-xs">
+                  Make current trip
+                </button>
+              </form>
+            )}
+            <Link href={`${tripPath(trip)}/edit`} className="btn-secondary text-xs">
+              Trip settings
+            </Link>
+          </div>
+          {/* Full width and allowed to wrap, so long names aren't cut off on phones. */}
+          <h1 className="break-words text-2xl font-extrabold tracking-tight">{trip.name}</h1>
         </div>
 
         <BalanceHero
@@ -95,6 +99,7 @@ export default async function TripPage({ params, searchParams }: PageProps<"/tri
             currencies={toOptions(currencies)}
             defaultCurrency={await defaultCurrency(currencies)}
             defaultPaidBy={await defaultPayer()}
+            balanceBefore={summary.balance}
           />
         </section>
 
@@ -102,7 +107,10 @@ export default async function TripPage({ params, searchParams }: PageProps<"/tri
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <h2 className="section-title mr-auto">
               <span aria-hidden className="grid h-8 w-8 place-items-center rounded-xl bg-accent-2/15 text-base">🧾</span>
-              History <span className="text-sm font-normal text-muted">({entries.length})</span>
+              History{" "}
+              <span className="text-sm font-normal text-muted">
+                ({countLabel(entries.filter((e) => e.kind === "expense").length, entries.filter((e) => e.kind === "payment").length)})
+              </span>
             </h2>
             {entries.length > 0 && (
               <>
@@ -131,7 +139,9 @@ export default async function TripPage({ params, searchParams }: PageProps<"/tri
                     <Flag currency={d.snapshot.currency} />
                     <span>
                       {d.snapshot.date} · {d.snapshot.description} · {formatMoney(d.snapshot.amountMinor, d.snapshot.currency)}{" "}
-                      <span className="text-xs">(deleted {new Date(d.at).toLocaleDateString("en-US")})</span>
+                      <span className="text-xs">
+                        (deleted <LocalTime iso={d.at} dateOnly />)
+                      </span>
                     </span>
                   </li>
                 ))}

@@ -47,8 +47,9 @@ export function toCsv(entries: Entry[], home: string, people: People, trips: Tri
       e.rateSource,
       e.rateDate,
       plainAmount(fx.home, home),
-      plainAmount(fx.share.p1, home),
-      plainAmount(fx.share.p2, home),
+      // Payments aren't anyone's share of a cost.
+      e.kind === "payment" ? "" : plainAmount(fx.share.p1, home),
+      e.kind === "payment" ? "" : plainAmount(fx.share.p2, home),
       plainAmount(running.get(e.id) ?? 0, home),
       e.method ? methodLabel[e.method] : "",
       e.notes,

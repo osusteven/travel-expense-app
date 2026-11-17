@@ -4,11 +4,12 @@ import { deleteEntryAction } from "@/app/actions";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { EntryForm } from "@/components/EntryForm";
 import { Header } from "@/components/Header";
+import { LocalTime } from "@/components/LocalTime";
 import { config, people } from "@/lib/config";
 import { homeFirst, toOptions } from "@/lib/currencyOptions";
 import { enabledCurrencies } from "@/lib/settings";
-import { entryHistory, getEntry, getTrip } from "@/lib/db";
-import { type Entry, tripPath } from "@/lib/ledger";
+import { entryHistory, getEntry, getTrip, listEntries } from "@/lib/db";
+import { type Entry, entryEffect, summarize, tripPath } from "@/lib/ledger";
 import { formatMoney, formatRate } from "@/lib/money";
 import { requireAuth } from "@/lib/session";
 
@@ -18,6 +19,9 @@ export default async function EditEntryPage({ params }: PageProps<"/entries/[id]
   const [entry, history, enabled] = await Promise.all([getEntry(id), entryHistory(id), enabledCurrencies()]);
   if (!entry) notFound();
   const trip = await getTrip(entry.tripId);
+  // The trip's balance without this entry, so the form can describe what it does.
+  const tripEntries = await listEntries(entry.tripId);
+  const balanceBefore = summarize(tripEntries, config.homeCurrency).balance - entryEffect(entry, config.homeCurrency).balanceDelta;
   const home = config.homeCurrency;
 
   return (
@@ -36,6 +40,7 @@ export default async function EditEntryPage({ params }: PageProps<"/entries/[id]
             currencies={toOptions(homeFirst(home, [entry.currency, ...enabled]))}
             defaultCurrency={entry.currency}
             entry={entry}
+            balanceBefore={balanceBefore}
           />
         </section>
 
@@ -45,7 +50,9 @@ export default async function EditEntryPage({ params }: PageProps<"/entries/[id]
             {history.map((h, i) => (
               <li key={i}>
                 <span className="font-medium">{{ create: "Created", update: "Edited", import: "Imported", delete: "Deleted" }[h.action]}</span>{" "}
-                <span className="text-muted">{new Date(h.at).toLocaleString("en-US")}</span>
+                <span className="text-muted">
+                  <LocalTime iso={h.at} />
+                </span>
                 <span className="block text-xs text-muted">{describe(h.snapshot)}</span>
               </li>
             ))}

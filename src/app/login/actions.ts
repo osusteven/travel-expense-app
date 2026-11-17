@@ -6,6 +6,7 @@ import { AUTH_COOKIE, AUTH_MAX_AGE, authToken, checkPassword } from "@/lib/auth"
 
 export async function login(_prev: { error?: string }, form: FormData): Promise<{ error?: string }> {
   const password = String(form.get("password") ?? "");
+  if (!password.trim() && !form.get("website")) return { error: "Enter the password." };
   // Honeypot: a field people never see. Bots that fill in every field get rejected.
   const honeypot = String(form.get("website") ?? "");
   if (honeypot || !checkPassword(password)) {

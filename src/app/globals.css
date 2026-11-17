@@ -142,14 +142,19 @@ body {
   .label {
     @apply text-sm font-medium text-muted;
   }
+  /* Controls are at least 44px tall so they're easy to tap. */
   .input {
-    @apply block w-full rounded-lg border border-line bg-card px-3 py-2 text-base outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/20 sm:text-sm;
+    @apply block min-h-11 w-full rounded-lg border border-line bg-card px-3 py-2 text-base outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/20 sm:text-sm;
+  }
+  .field-invalid .input,
+  .input[aria-invalid="true"] {
+    @apply border-red-500 ring-2 ring-red-500/20;
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-accent to-accent-2 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-accent/25 transition hover:brightness-110 disabled:opacity-60;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-accent to-accent-2 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-accent/25 transition hover:brightness-110 disabled:opacity-60;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-card px-3 py-2 text-sm font-medium transition hover:border-accent/50 hover:bg-subtle;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-line bg-card px-3 py-2 text-sm font-medium transition hover:border-accent/50 hover:bg-subtle;
   }
   /* Person 1's color to person 2's color (red to blue) */
   .hero {

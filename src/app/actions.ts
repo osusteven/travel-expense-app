@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { config } from "@/lib/config";
-import { createTrip, deleteEntry, deleteTrip, getEntry, getTrip, listTrips, renameTrip, saveEntry } from "@/lib/db";
-import { type Entry, PAYMENT_METHODS, type PaymentMethod, tripPath } from "@/lib/ledger";
+import { createTrip, deleteEntry, deleteTrip, getEntry, getTrip, listEntries, listTrips, renameTrip, saveEntry } from "@/lib/db";
+import { type Entry, PAYMENT_METHODS, type PaymentMethod, summarize, tripPath } from "@/lib/ledger";
 import { parseDecimal, toMinor } from "@/lib/money";
 import { requireAuth } from "@/lib/session";
 import { LAST_CURRENCY_COOKIE, LAST_PAYER_COOKIE, currentTripId, setCurrentTrip } from "@/lib/settings";
@@ -89,13 +89,19 @@ export async function settleUpAction(_prev: SettleState, form: FormData): Promis
   const method: PaymentMethod = (PAYMENT_METHODS as readonly string[]).includes(m) ? (m as PaymentMethod) : "other";
   const reference = String(form.get("reference") ?? "").trim().slice(0, 500);
 
+  // Name it by what it does: only a payment that brings the trip to exactly zero is "Settled up".
+  const balance = summarize(await listEntries(trip.id), home).balance;
+  const debt = Math.abs(balance);
+  const fromOwes = from === "p2" ? balance > 0 : balance < 0;
+  const description = !fromOwes || amountMinor > debt ? "Overpayment" : amountMinor === debt ? "Settled up" : "Partial payment";
+
   const now = new Date().toISOString();
   const entry: Entry = {
     id: crypto.randomUUID(),
     tripId: trip.id,
     kind: "payment",
     date,
-    description: "Settled up",
+    description,
     amountMinor,
     currency: home,
     rate: "1",

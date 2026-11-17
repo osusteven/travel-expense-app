@@ -21,12 +21,13 @@ export function BackupNowButton({ disabled }: { disabled: boolean }) {
   );
 }
 
-export function RestoreButton({ path, label }: { path: string; label: string }) {
+export function RestoreButton({ path, uploadedAt }: { path: string; uploadedAt: string }) {
   const [state, action, pending] = useActionState<ActionResult, FormData>(restoreBackupAction, {});
   return (
     <form
       action={action}
       onSubmit={(e) => {
+        const label = new Date(uploadedAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
         if (!confirm(`Replace all current entries with the backup from ${label}? A safety backup of the current data is made first.`)) {
           e.preventDefault();
         }

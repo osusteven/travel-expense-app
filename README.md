@@ -26,8 +26,9 @@ Also: [settings](docs/screenshots/5_settings.png) · [people](docs/screenshots/s
   instead, alternating between the two of you (all hidden if the device has "reduce motion" on). Each
   person's total sits on their side, with the trip total in the middle.
 - **Settle up.** Record a payment with the amount (prefilled with the full balance), date, method (Venmo, cash,
-  Zelle, PayPal, bank transfer or other) and a note or reference. History shows it with **✓ Balance: $0.00** when
-  it settles the trip. With a Venmo username saved in Settings, **Open Venmo** opens Venmo with the recipient, amount
+  Zelle, PayPal, bank transfer or other) and a note or reference. It's called **Settled up** only when it brings the
+  trip to $0.00; less is a **Partial payment**, and paying more than is owed asks first and is labelled
+  **Overpayment**. With a Venmo username saved in Settings, **Open Venmo** opens Venmo with the recipient, amount
   and note filled in. Venmo can't tell the app a payment went through, so tap **Record payment** after paying.
 - **One form for everything.** Each entry has a description, date, amount and currency, who paid, and how it's split:
   - 50/50
@@ -75,6 +76,10 @@ The app follows these practices, and they're also good rules if you ever reconci
    covers about 30 major currencies. For the rest (e.g. Laos LAK, Cambodia KHR, Vietnam VND) it uses the free
    [currency-api](https://github.com/fawazahmed0/exchange-api) daily market rates, which cover about 200 currencies,
    and labels them "Market rate". If neither has a rate, you type it in.
+   If you type a rate by hand that's more than 5% away from the published rate for that day, the form warns you and
+   asks before saving, and it always shows the rate the other way round too (1 USD = … LAK), which makes a
+   slip like 1.5 instead of 0.0000458 obvious. Entries with a hand-typed rate are kept as entered and marked ★ in
+   History.
 5. **Best of all, use what you were actually charged.** Pick "I know the USD amount charged" and enter the amount from
    your card or bank statement. That includes your bank's real rate and any foreign-transaction fees, so the split is
    exactly what left your account. The app works out the effective rate and stores the exact charged amount.

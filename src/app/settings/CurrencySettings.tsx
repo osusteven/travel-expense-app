@@ -45,6 +45,7 @@ export function CurrencySettings({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search currency or country"
+          aria-label="Search currency or country"
           className="input max-w-xs"
         />
         <button type="button" className="btn-secondary" onClick={() => set(popular)}>
@@ -64,7 +65,7 @@ export function CurrencySettings({
           return (
             <li key={o.code}>
               <label
-                className={`flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-subtle ${
+                className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-subtle ${
                   checked.has(o.code) ? "" : "opacity-60"
                 }`}
               >

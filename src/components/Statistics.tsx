@@ -32,7 +32,7 @@ export function Statistics({
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Tile label="Total spent" value={money(s.totalSpent)} tint="var(--accent)" />
         <Tile label={`Per day (${s.days} ${s.days === 1 ? "day" : "days"})`} value={money(s.perDay)} tint="var(--accent-2)" />
-        <Tile label="Expenses" value={String(s.expenseCount)} sub={s.payments.count ? `+ ${s.payments.count} payments` : undefined} tint="var(--accent-3)" />
+        <Tile label="Expenses" value={String(s.expenseCount)} sub={s.payments.count ? `+ ${s.payments.count} ${s.payments.count === 1 ? "payment" : "payments"}` : undefined} tint="var(--accent-3)" />
         <Tile
           label="Biggest expense"
           value={s.largest ? money(s.largest.home) : "–"}
@@ -43,7 +43,7 @@ export function Statistics({
 
       {/* By country */}
       <section className="card">
-        <h3 className="mb-3 font-bold">Spending by country</h3>
+        <h3 className="mb-3 font-bold">Spending by currency</h3>
         <ul className="space-y-2.5">
           {s.byCountry.map((c) => (
             <li key={c.currency} className="group">

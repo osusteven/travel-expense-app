@@ -1,4 +1,5 @@
 import { Header } from "@/components/Header";
+import { LocalTime } from "@/components/LocalTime";
 import { backupsConfigured, listBackups } from "@/lib/backup";
 import { config, people } from "@/lib/config";
 import { ALL_CURRENCIES, POPULAR } from "@/lib/currencyData";
@@ -13,8 +14,8 @@ import { CurrencySettings } from "./CurrencySettings";
 import { ThemeSettings } from "./ThemeSettings";
 import { PersonSettings } from "./PersonSettings";
 
-const when = (iso: string) =>
-  new Date(iso).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
+/** Shown in the viewer's own time zone. */
+const when = (iso: string) => <LocalTime iso={iso} />;
 
 export default async function SettingsPage() {
   await requireAuth();
@@ -127,7 +128,7 @@ export default async function SettingsPage() {
                         <a className="text-sm font-medium text-accent hover:underline" href={`/api/backups/download?path=${encodeURIComponent(b.pathname)}`}>
                           Download
                         </a>
-                        <RestoreButton path={b.pathname} label={when(b.uploadedAt)} />
+                        <RestoreButton path={b.pathname} uploadedAt={b.uploadedAt} />
                       </td>
                     </tr>
                   ))}
@@ -183,7 +184,7 @@ export default async function SettingsPage() {
   );
 }
 
-function Status({ label, value, detail, tone }: { label: string; value: string; detail?: string; tone: "good" | "bad" }) {
+function Status({ label, value, detail, tone }: { label: string; value: React.ReactNode; detail?: string; tone: "good" | "bad" }) {
   return (
     <div className="rounded-xl border border-line p-3">
       <p className="text-xs font-medium uppercase tracking-wide text-muted">{label}</p>
