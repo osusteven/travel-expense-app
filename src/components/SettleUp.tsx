@@ -3,6 +3,7 @@
 import { useActionState, useState, useSyncExternalStore } from "react";
 import { settleUpAction, type SettleState } from "@/app/actions";
 import { parseDecimal } from "@/lib/money";
+import { Avatar } from "./Avatar";
 import { PAYMENT_METHODS, type PaymentMethod, type PersonKey, methodLabel } from "@/lib/ledger";
 
 const noSubscribe = () => () => {};
@@ -20,6 +21,8 @@ export function SettleUp({
   tripId,
   tripName,
   from,
+  people,
+  photos = {},
   fromName,
   toName,
   amount,
@@ -29,6 +32,9 @@ export function SettleUp({
   tripId: string;
   tripName: string;
   from: PersonKey;
+  /** Both names, to show person 1 on the left and person 2 on the right. */
+  people: Record<PersonKey, string>;
+  photos?: Partial<Record<PersonKey, string>>;
   fromName: string;
   toName: string;
   /** Plain decimal string of the full balance, e.g. "737.15". */
@@ -81,7 +87,15 @@ export function SettleUp({
     >
       <input type="hidden" name="tripId" value={tripId} />
       <input type="hidden" name="from" value={from} />
-      <p className="text-sm font-semibold">
+      {/* Same order as everywhere else: person 1 (red) left, person 2 (blue) right; the arrow shows who pays whom. */}
+      <div className="flex items-center gap-2" aria-hidden>
+        <Avatar person="p1" name={people.p1} photo={photos.p1} size={32} />
+        <span className="flex-1 border-t-2 border-dashed border-line" />
+        <span className="text-lg font-bold text-muted">{from === "p1" ? "→" : "←"}</span>
+        <span className="flex-1 border-t-2 border-dashed border-line" />
+        <Avatar person="p2" name={people.p2} photo={photos.p2} size={32} />
+      </div>
+      <p className="text-center text-sm font-semibold">
         {fromName} pays {toName}
       </p>
       <div className="grid grid-cols-2 gap-3">

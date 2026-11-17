@@ -392,6 +392,8 @@ export function EntryForm({
           value: p,
           label: people[p],
           icon: <Avatar person={p} name={people[p]} photo={photos[p]} size={28} />,
+          // Selected person shows in their own color (person 1 red, person 2 blue).
+          color: `var(--${p})`,
         }))}
       />
 
@@ -606,7 +608,7 @@ function Segmented({
 }: {
   label: string;
   value: string;
-  options: { value: string; label: string; icon?: React.ReactNode }[];
+  options: { value: string; label: string; icon?: React.ReactNode; color?: string }[];
   onChange: (v: string) => void;
 }) {
   return (
@@ -623,6 +625,7 @@ function Segmented({
             className={`inline-flex min-h-11 items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition-colors ${
               value === o.value ? "bg-accent text-white" : "hover:bg-subtle"
             }`}
+            style={value === o.value && o.color ? { background: o.color } : undefined}
           >
             {/* Decorative: the name next to it already says who it is. */}
             {o.icon && (

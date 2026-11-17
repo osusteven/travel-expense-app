@@ -72,11 +72,11 @@ export function currencyName(currency: string): string {
 }
 
 /**
- * Countries get one of 8 validated, colorblind-safe colors (CSS variables --series-1 … --series-8, defined for
- * light and dark mode in globals.css), assigned in the order countries first appear in the trip.
- * Colors are never reused: a 9th country or later is gray ("other") and is identified by its flag and name.
+ * The first two currencies of a trip get teal and yellow (CSS --series-1/2, validated colorblind-safe in light and
+ * dark mode). Red, blue and anything close to them are kept for the two people, so further currencies are gray
+ * ("other") and identified by their flag and code. Colors are never reused.
  */
-export const SERIES_SLOTS = 8;
+export const SERIES_SLOTS = 2;
 
 export function countrySlots(currenciesInOrder: string[]): Record<string, number> {
   const slots: Record<string, number> = {};

@@ -107,7 +107,7 @@ export function History({
             Everyone
           </FilterChip>
           {(["p1", "p2"] as const).map((p) => (
-            <FilterChip key={p} on={person === p} onClick={() => setPerson(person === p ? "all" : p)}>
+            <FilterChip key={p} on={person === p} color={`var(--${p})`} onClick={() => setPerson(person === p ? "all" : p)}>
               <Avatar person={p} name={name(p)} photo={photos[p]} size={16} />
               {name(p)}
             </FilterChip>
@@ -303,12 +303,24 @@ function HistoryCard({
   );
 }
 
-function FilterChip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+function FilterChip({
+  on,
+  onClick,
+  children,
+  color,
+}: {
+  on: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  /** For a person's chip: their color when selected. */
+  color?: string;
+}) {
   return (
     <button
       type="button"
       aria-pressed={on}
       onClick={onClick}
+      style={on && color ? { background: color, borderColor: color } : undefined}
       className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition ${
         on ? "border-accent bg-accent text-white" : "border-line bg-card hover:border-accent/50"
       }`}

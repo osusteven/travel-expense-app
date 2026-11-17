@@ -82,6 +82,8 @@ export function BalanceHero({
             tripId={tripId}
             tripName={tripName}
             from={owed.from}
+            people={people}
+            photos={{ p1: profiles.p1.photo, p2: profiles.p2.photo }}
             fromName={people[owed.from]}
             toName={people[owed.to]}
             amount={plainAmount(owed.amount, home)}

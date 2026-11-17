@@ -91,10 +91,17 @@ export default async function TripsPage() {
                 <div className="text-right">
                   <p className="text-xl font-extrabold tabular-nums">{formatMoney(r.total, home)}</p>
                   {r.owed ? (
-                    <p className="mt-1 flex items-center justify-end gap-1.5 text-xs font-medium">
-                      <Avatar person={r.owed.from} name={people[r.owed.from]} photo={prof[r.owed.from].photo} size={20} />
-                      {people[r.owed.from]} owes {formatMoney(r.owed.amount, home)}
-                    </p>
+                    <div className="mt-1 flex flex-col items-end gap-0.5">
+                      {/* Person 1 (red) left, person 2 (blue) right; the arrow points to whoever is owed. */}
+                      <span className="flex items-center gap-1" aria-hidden>
+                        <Avatar person="p1" name={people.p1} photo={prof.p1.photo} size={20} />
+                        <span className="text-xs font-bold text-muted">{r.owed.to === "p2" ? "→" : "←"}</span>
+                        <Avatar person="p2" name={people.p2} photo={prof.p2.photo} size={20} />
+                      </span>
+                      <span className="text-xs font-medium">
+                        {people[r.owed.from]} owes {people[r.owed.to]} {formatMoney(r.owed.amount, home)}
+                      </span>
+                    </div>
                   ) : (
                     r.count > 0 && <p className="mt-1 text-xs font-semibold text-good">✓ Settled</p>
                   )}

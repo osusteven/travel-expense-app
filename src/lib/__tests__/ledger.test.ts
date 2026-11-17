@@ -144,7 +144,7 @@ describe("statistics", () => {
   it("assigns country colors in order of first use and never reuses them", () => {
     const codes = ["USD", "JPY", "USD", "EUR", "KRW", "THB", "VND", "GBP", "MXN", "CAD"];
     const slots = countrySlots(codes);
-    expect(slots).toMatchObject({ USD: 1, JPY: 2, EUR: 3, MXN: 8, CAD: 0 });
+    expect(slots).toMatchObject({ USD: 1, JPY: 2, EUR: 0, VND: 0, CAD: 0 });
   });
   it("history carries running balance and country", () => {
     const h = historyItems(entries, "USD");
